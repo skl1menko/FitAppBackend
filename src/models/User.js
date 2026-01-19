@@ -1,7 +1,7 @@
 const {pool} = require('../config/database');
 
 class User{
-    static async create(email,passwordHash,fullName, roleId){
+    static async createUser(email,passwordHash,fullName, roleId){
         const result = await pool.query(
             `INSERT INTO users(email, password_hash, full_name, role_id)
             VALUES($1, $2, $3, $4) RETURNING id`,
@@ -10,7 +10,7 @@ class User{
         return {id: result.rows[0].id};
     }
 
-    static async findByEmail(email){
+    static async findUserByEmail(email){
         const result = await pool.query(
             `SELECT u.*, r.name as role_name
             FROM users u
@@ -21,7 +21,7 @@ class User{
         return result.rows[0];
     }
 
-    static async findById(id){
+    static async findUserById(id){
         const result = await pool.query(
             `SELECT u.*, r.name as role_name
             FROM users u
