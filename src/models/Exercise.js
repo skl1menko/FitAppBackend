@@ -34,6 +34,7 @@ class Exercise{
             ORDER BY name`,
             [creatorId]
         );
+        return result.rows
     }
 
     static async getAllExercises(){
