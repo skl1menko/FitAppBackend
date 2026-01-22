@@ -17,7 +17,7 @@ const register = async (req, res) => {
         }
 
         const roleName = role || 'athlete';
-        const userRole = await Role.findRoleByName(roleName);
+        const userRole = await Role.getRoleByName(roleName);
 
         if(!userRole){
             return res.status(400).json({
