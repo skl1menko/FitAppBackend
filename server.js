@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const {initDatabase} = require('./src/config/database');
+const authRoutes = require('./src/routes/authRoutes');
+
 
 const app = express();
 app.use(cors());
@@ -16,6 +18,8 @@ app.get('/', (req, res) => {
         version: '1.0.0'
     })
 });
+
+app.use('/api/auth', authRoutes);
 
 initDatabase().then(() => {
     app.listen(PORT, () => {
