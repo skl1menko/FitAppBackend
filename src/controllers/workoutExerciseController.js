@@ -1,6 +1,7 @@
 const WorkoutExercise = require("../models/WorkoutExercise");
 const Workout = require("../models/Workout");
 const Exercise = require("../models/Exercise");
+const WorkoutSet = require("../models/WorkoutSet");
 
 //POST /api/workouts/:workoutId/exercises
 const addExerciseToWorkout = async (req, res) =>{
@@ -99,9 +100,19 @@ const getWorkoutExercises = async (req, res) => {
 
         const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
         
+        const exercisesWithSets = await Promise.all(
+            exercises.map(async (exercise) => {
+                const sets = await WorkoutSet.getSetsByWorkoutExercise(exercise.id);
+                return {
+                    ...exercise,
+                    sets
+                };
+            })
+        );
+
         res.status(200).json({
             success: true,
-            data: exercises
+            data: exercisesWithSets
         });
     } catch (error) {
         console.error('Get workout exercises error:', error);

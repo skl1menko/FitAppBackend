@@ -53,6 +53,7 @@ const initDatabase = async () => {
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 muscle_group VARCHAR(100) NOT NULL,
+                description TEXT,
                 is_custom BOOLEAN DEFAULT FALSE,
                 creator_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -90,6 +91,7 @@ const initDatabase = async () => {
             CREATE TABLE IF NOT EXISTS workouts(
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                name VARCHAR(255),
                 program_id INTEGER REFERENCES training_programs(id) ON DELETE SET NULL,
                 start_time TIMESTAMP NOT NULL,
                 end_time TIMESTAMP,

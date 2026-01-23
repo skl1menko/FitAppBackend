@@ -1,9 +1,11 @@
 const Workout = require("../models/Workout");
+const WorkoutExercise = require("../models/WorkoutExercise");
+const WorkoutSet = require("../models/WorkoutSet");
 
 //POST /api/workouts
 const createWorkout = async (req, res) => {
     try{
-        const {program_id, notes} = req.body;
+        const {program_id, name, notes} = req.body;
         const userId = req.user.id;
         const startTime = new Date();
 
@@ -11,7 +13,8 @@ const createWorkout = async (req, res) => {
             userId,
             program_id || null,
             startTime,
-            notes|| null
+            name || null,
+            notes || null
         );
 
         const workout = await Workout.getWorkoutById(newWorkout.id);
@@ -73,9 +76,24 @@ const getWorkoutById = async (req, res) => {
             });
         }
 
+        const exercises = await WorkoutExercise.getExercisesByWorkoutId(id);
+
+        const exercisesWithSets = await Promise.all(
+            exercises.map(async (exercise) => {
+                const sets = await WorkoutSet.getSetsByWorkoutExercise(exercise.id);
+                return {
+                    ...exercise,
+                    sets
+                };
+            })
+        );
+
         res.status(200).json({
             success: true,
-            data: workout
+            data: {
+                ...workout,
+                exercisesWithSets
+            }
         });
 
         
@@ -126,7 +144,7 @@ const getWorkoutByDateRange = async (req, res) =>{
 const updateWorkout = async (req, res) => {
     try {
         const {id} = req.params;
-        const {notes, end_time} = req.body;
+        const {name, notes, end_time} = req.body;
         const userId = req.user.id;
 
         const workout = await Workout.getWorkoutById(id);
@@ -144,11 +162,17 @@ const updateWorkout = async (req, res) => {
                 message: 'Access denied'
             });
         }
-        const endTime = end_time ? new Date(end_time) : new Date();
+        const endTime = end_time ? new Date(end_time) : null;
 
         const {totalTonnage} = await Workout.calculateTotalTonnage(id);
 
-        await Workout.updateWorkout(id, endTime, notes, totalTonnage);
+        const updates = {};
+        if (name !== undefined) updates.name = name;
+        if (endTime !== null) updates.endTime = endTime;
+        if (notes !== undefined) updates.notes = notes;
+        updates.totalTonnage = totalTonnage;
+
+        await Workout.updateWorkout(id, updates);
 
         const updatedWorkout = await Workout.getWorkoutById(id);
         
