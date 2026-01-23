@@ -1,12 +1,12 @@
 const {pool} = require('../config/database');
 
 class Workout{
-    static async createWorkout(userId, programId, startTime,notes){
+    static async createWorkout(userId, programId, startTime, name, notes){
         const result = await pool.query(
-            `INSERT INTO workouts(user_id, program_id,start_time, notes)
-            VALUES($1, $2, $3, $4) 
+            `INSERT INTO workouts(user_id, program_id, start_time, name, notes)
+            VALUES($1, $2, $3, $4, $5) 
             RETURNING id`,
-            [userId, programId, startTime, notes]
+            [userId, programId, startTime, name, notes]
         );
         return {id: result.rows[0].id};
     }
@@ -61,14 +61,37 @@ class Workout{
         return result.rows;
     }
 
-    static async updateWorkout(id, endTime, notes, totalTonnage){
-        const result = await pool.query(
-            `UPDATE workouts
-            SET end_time = $1, notes = $2, total_tonnage = $3
-            WHERE id = $4`,
-            [endTime, notes, totalTonnage, id]
-        );
-        return {changes: result.rowCount}
+    static async updateWorkout(id, updates){
+        const fields = [];
+        const values = [];
+        let paramIndex = 1;
+
+        if (updates.name !== undefined) {
+            fields.push(`name = $${paramIndex++}`);
+            values.push(updates.name);
+        }
+        if (updates.endTime !== undefined) {
+            fields.push(`end_time = $${paramIndex++}`);
+            values.push(updates.endTime);
+        }
+        if (updates.notes !== undefined) {
+            fields.push(`notes = $${paramIndex++}`);
+            values.push(updates.notes);
+        }
+        if (updates.totalTonnage !== undefined) {
+            fields.push(`total_tonnage = $${paramIndex++}`);
+            values.push(updates.totalTonnage);
+        }
+
+        if (fields.length === 0) {
+            return {changes: 0};
+        }
+
+        values.push(id);
+        const query = `UPDATE workouts SET ${fields.join(', ')} WHERE id = $${paramIndex}`;
+        
+        const result = await pool.query(query, values);
+        return {changes: result.rowCount};
     }
 
     static async deleteWorkoutById(id){
