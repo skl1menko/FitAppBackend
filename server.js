@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const {initDatabase} = require('./src/config/database');
 const authRoutes = require('./src/routes/authRoutes');
+const exerciseRoutes = require('./src/routes/exerciseRoutes');
 
 
 const app = express();
@@ -20,6 +21,9 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+
+app.use('/api/exercises', exerciseRoutes);
+
 
 initDatabase().then(() => {
     app.listen(PORT, () => {
