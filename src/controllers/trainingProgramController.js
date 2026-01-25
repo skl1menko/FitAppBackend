@@ -1,5 +1,6 @@
 const TrainingProgram = require("../models/TrainingProgram");
 const User = require("../models/User");
+const Workout = require("../models/Workout");
 
 //POST /api/programs
 const createTrainingProgram = async (req, res) => {
@@ -65,9 +66,15 @@ const getProgramById = async (req, res) => {
             });
         }
 
+        // Отримати список тренувань для цієї програми
+        const workouts = await Workout.getWorkoutByProgram(id);
+        
         return res.status(200).json({
             success: true,
-            data: program
+            data: {
+                ...program,
+                workouts: workouts
+            }
         });
 
     } catch (error) {
