@@ -7,6 +7,9 @@ const exerciseRoutes = require('./src/routes/exerciseRoutes');
 const workoutRoutes = require('./src/routes/workoutRoutes/workoutRoutes');
 const workoutExerciseRoutes = require('./src/routes/workoutRoutes/workoutExerciseRoutes');
 const workoutSetRoutes = require('./src/routes/workoutRoutes/workoutSetRoutes');
+const trainingProgramRoutes = require('./src/routes/trainingProgramRoutes');
+const trainerRoutes = require('./src/routes/trainerRoutes');
+
 
 
 const app = express();
@@ -32,6 +35,10 @@ app.use('/api/workouts', workoutRoutes);
 app.use('/api/workouts', workoutExerciseRoutes);
 
 app.use('/api/workouts', workoutSetRoutes);
+
+app.use('/api/programs', trainingProgramRoutes);
+
+app.use('/api/trainers', trainerRoutes);
 
 initDatabase().then(() => {
     app.listen(PORT, () => {
