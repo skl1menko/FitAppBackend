@@ -250,15 +250,14 @@ const deleteBodyMeasurement = async (req, res) => {
     }
 };
 
-//GET /api/body-measurements/progress/:field?startDate=&endDate=
+//GET /api/body-measurements/progress?field=body_weight&startDate=&endDate=
 const getBodyMeasurementProgress = async (req, res) => {
     try {
         const userId = req.user.id;
-        const {field} = req.params;
-        const {startDate, endDate} = req.query;
+        const {field, startDate, endDate} = req.query;
 
         const validFields = ['body_weight', 'height', 'chest', 'waist', 'hips', 'biceps'];
-        if (!validFields.includes(field)) {
+        if (!field || !validFields.includes(field)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid measurement field'
