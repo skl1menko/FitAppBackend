@@ -4,6 +4,7 @@ const {
     register,
     login,
     getProfile,
+    getAllUser,
     updateProfile
 } = require('../controllers/authController');
 
@@ -22,6 +23,8 @@ router.post('/login', validateEmail, validatePassword, login);
 
 //GET /api/auth/profile
 router.get('/profile', verifyToken, getProfile);
+
+router.get('/users', verifyToken, getAllUser);
 
 //PUT /api/auth/profile
 router.put('/profile', verifyToken, updateProfile);

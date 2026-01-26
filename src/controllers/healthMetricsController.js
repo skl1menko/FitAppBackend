@@ -4,6 +4,7 @@ const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
 const {verifyWorkoutAccess} = require('../utils/accessControl');
+const HealthMetricsDTO = require('../dto/healthMetrics.dto');
 
 //POST /api/health-metrics
 const syncHealthMetricsIOS = asyncHandler(async (req, res) => {
@@ -49,7 +50,7 @@ const syncHealthMetricsIOS = asyncHandler(async (req, res) => {
 
     const createMetrics = await HealthMetrics.getMetricsById(newMetrics.id);
     
-    return createResponse(res, createMetrics, 'Health metrics created successfully');
+    return createResponse(res, HealthMetricsDTO.toDetail(createMetrics), 'Health metrics created successfully');
 });
 
 //GET /api/health-metrics
@@ -65,7 +66,7 @@ const getHealthMetrics = asyncHandler(async (req, res) => {
     }
 
     const metrics = await HealthMetrics.getUserMetrics(userId, period_type || null);
-    return successResponse(res, metrics);
+    return successResponse(res, HealthMetricsDTO.toListArray(metrics));
 });
 
 //GET /api/health-metrics/workout/:workoutId
@@ -81,7 +82,7 @@ const getWorkoutHealthMetrics = asyncHandler(async (req, res) => {
         throw new AppError('No health metrics found for this workout', 404);
     }
     
-    return successResponse(res, metrics);
+    return successResponse(res, HealthMetricsDTO.toListArray(metrics));
 });
 
 //GET /api/health-metrics/period/:type
@@ -108,18 +109,7 @@ const getHealthMetricsByPeriod = asyncHandler(async (req, res) => {
     const detailedMetrics = await HealthMetrics.getMetricsByDateRange(userId, startDate, endDate);
     const avgMetrics = await HealthMetrics.getAverageMetrics(userId, type, startDate, endDate);
     
-    return successResponse(res, {
-        period_type: type,
-        start_date: startDate,
-        end_date: endDate,
-        average_metrics: {
-            avg_energy_burned: parseFloat(avgMetrics.avg_energy_burned) || 0,
-            avg_step_count: parseFloat(avgMetrics.avg_step_count) || 0,
-            avg_heart_rate: parseFloat(avgMetrics.avg_heart_rate) || 0
-        },
-        total_entries: detailedMetrics.length,
-        detailed_metrics: detailedMetrics
-    });
+    return successResponse(res, HealthMetricsDTO.toPeriodSummary(type, startDate, endDate, avgMetrics, detailedMetrics));
 });
 
 module.exports = {

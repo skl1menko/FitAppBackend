@@ -4,6 +4,7 @@ const Workout = require("../models/Workout");
 const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
+const TrainingProgramDTO = require('../dto/trainingProgram.dto');
 
 //POST /api/programs
 const createTrainingProgram = asyncHandler(async (req, res) => {
@@ -15,13 +16,13 @@ const createTrainingProgram = asyncHandler(async (req, res) => {
     const newProgram = await TrainingProgram.createTrainingProgram(name, description || null, userId);
     const program = await TrainingProgram.getTrainingProgramById(newProgram.id);
 
-    return createResponse(res, program, 'Training program created successfully');
+    return createResponse(res, TrainingProgramDTO.toDetail(program), 'Training program created successfully');
 });
 
 //GET /api/programs
 const getAllPrograms = asyncHandler(async (req, res) => {
     const programs = await TrainingProgram.getAllPrograms();
-    return successResponse(res, programs);
+    return successResponse(res, TrainingProgramDTO.toListArray(programs));
 });
 
 //GET /api/programs/:id
@@ -35,17 +36,14 @@ const getProgramById = asyncHandler(async (req, res) => {
 
     const workouts = await Workout.getWorkoutByProgram(id);
     
-    return successResponse(res, {
-        ...program,
-        workouts
-    });
+    return successResponse(res, TrainingProgramDTO.toProgramWithWorkouts(program, workouts));
 });
 
 //GET /api/programs/my-assigned
 const getMyAssignedPrograms = asyncHandler(async (req, res) => {
     const userId = req.user.id;
     const programs = await TrainingProgram.getAthletePrograms(userId);
-    return successResponse(res, programs);
+    return successResponse(res, TrainingProgramDTO.toListArray(programs));
 });
 
 //POST /api/programs/:id/assign
@@ -77,13 +75,7 @@ const assignProgramToAthlete = asyncHandler(async (req, res) => {
 
     await TrainingProgram.assignProgramToAthlete(id, athleteId, trainerId);
     
-    return createResponse(res, {
-        program_id: id,
-        program_name: program.name,
-        athlete_id: athleteId,
-        athlete_name: athlete.full_name,
-        assigned_by: trainerId
-    }, 'Training program assigned to athlete successfully');
+    return createResponse(res, TrainingProgramDTO.toAssignProgram(program, athlete, trainerId), 'Training program assigned to athlete successfully');
 });
 
 //PUT /api/programs/:id
@@ -106,7 +98,7 @@ const updateTrainingProgram = asyncHandler(async (req, res) => {
     await TrainingProgram.updateProgram(id, name, description || null);
     const updatedProgram = await TrainingProgram.getTrainingProgramById(id);
     
-    return createResponse(res, updatedProgram, 'Training program updated successfully');
+    return createResponse(res, TrainingProgramDTO.toDetail(updatedProgram), 'Training program updated successfully');
 });
 
 //DELETE /api/programs/:id
