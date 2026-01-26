@@ -1,6 +1,14 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+const generateToken = (userId, expiresIn = '30d') => {
+    return jwt.sign(
+        {userId},
+        process.env.JWT_SECRET,
+        {expiresIn}
+    );
+};
+
 const verifyToken = async (req, res, next) => {
     try{
         const authHeader = req.headers.authorization;
@@ -55,4 +63,4 @@ const verifyToken = async (req, res, next) => {
     }
 };
 
-module.exports = {verifyToken};
+module.exports = {generateToken, verifyToken};

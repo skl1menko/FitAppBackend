@@ -1,103 +1,54 @@
 const BodyMeasurement = require('../models/BodyMeasurement');
+const {asyncHandler, AppError} = require('../utils/errorHandler');
+const {validateNumericFields} = require('../utils/validator');
+const {createResponse, successResponse} = require('../utils/responseHandler');
 
 //POST /api/body-measurements
-const addBodyMeasurement = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const {bodyWeight, height, chest, waist, hips, biceps, notes} = req.body;
+const addBodyMeasurement = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const {bodyWeight, height, chest, waist, hips, biceps, notes} = req.body;
 
-        if (!bodyWeight && !height && !chest && !waist && !hips && !biceps) {
-            return res.status(400).json({
-                success: false,
-                message: 'At least one measurement is required'
-            });
-        }
-
-        const numericFields = {bodyWeight, height, chest, waist, hips, biceps};
-
-        for (const [field, value] of Object.entries(numericFields)) {
-            if (value !== undefined && value !== null && value <= 0 ) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Invalid value for ${field}`
-                });
-            }
-        }
-
-        const measurementData = {
-            bodyWeight: bodyWeight || null,
-            height: height || null,
-            chest: chest || null,
-            waist: waist || null,
-            hips: hips || null,
-            biceps: biceps || null,
-            notes: notes || null
-        }
-
-        const newMeasurement = await BodyMeasurement.createMeasurement(userId,measurementData);
-
-        const createdMeasurement = await BodyMeasurement.getMeasurementById(newMeasurement.id);
-        
-        return res.status(201).json({
-            success: true,
-            message: 'Body measurement added successfully',
-            data: createdMeasurement
-        });
-    } catch (error) {
-        console.error('Add body measurement error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to add body measurement',
-            error: error.message
-        });
+    if (!bodyWeight && !height && !chest && !waist && !hips && !biceps) {
+        throw new AppError('At least one measurement is required', 400);
     }
-};
+
+    const numericFields = {bodyWeight, height, chest, waist, hips, biceps};
+    validateNumericFields(numericFields);
+
+    const measurementData = {
+        bodyWeight: bodyWeight || null,
+        height: height || null,
+        chest: chest || null,
+        waist: waist || null,
+        hips: hips || null,
+        biceps: biceps || null,
+        notes: notes || null
+    };
+
+    const newMeasurement = await BodyMeasurement.createMeasurement(userId, measurementData);
+    const createdMeasurement = await BodyMeasurement.getMeasurementById(newMeasurement.id);
+    
+    return createResponse(res, createdMeasurement, 'Body measurement added successfully');
+});
 
 //GET /api/body-measurements
-const getBodyMeasurements = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const measurements = await BodyMeasurement.getUserMeasurements(userId);
-        return res.status(200).json({
-            success: true,
-            data: measurements
-        });
-    } catch (error) {
-        console.error('Get body measurements error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to get body measurements',
-            error: error.message
-        });
-    }
-};
+const getBodyMeasurements = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const measurements = await BodyMeasurement.getUserMeasurements(userId);
+    return successResponse(res, measurements);
+});
 
 //GET /api/body-measurements/latest
-const getLatestBodyMeasurement = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const measurement = await BodyMeasurement.getLatestMeasurement(userId);
-        
-        if (!measurement) {
-            return res.status(404).json({
-                success: false,
-                message: 'No body measurements found'
-            });
-        }
-        
-        return res.status(200).json({
-            success: true,
-            data: measurement
-        });
-    } catch (error) {
-        console.error('Get latest body measurement error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to get latest body measurement',
-            error: error.message
-        });
+const getLatestBodyMeasurement = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const measurement = await BodyMeasurement.getLatestMeasurement(userId);
+    
+    if (!measurement) {
+        throw new AppError('No body measurements found', 404);
     }
-};
+    
+    return successResponse(res, measurement);
+});
 
 
 //GET /api/body-measurements/range?startDate=&endDate=

@@ -2,235 +2,100 @@ const WorkoutExercise = require("../models/WorkoutExercise");
 const Workout = require("../models/Workout");
 const Exercise = require("../models/Exercise");
 const WorkoutSet = require("../models/WorkoutSet");
+const {asyncHandler, AppError} = require('../utils/errorHandler');
+const {validateRequired} = require('../utils/validator');
+const {createResponse, successResponse} = require('../utils/responseHandler');
+const {verifyWorkoutAccess, verifyExerciseAccess} = require('../utils/accessControl');
 
 //POST /api/workouts/:workoutId/exercises
-const addExerciseToWorkout = async (req, res) =>{
-    try {
-        const {workoutId} = req.params;
-        const {exercise_id, exercise_order} = req.body;
-        const userId = req.user.id;
+const addExerciseToWorkout = asyncHandler(async (req, res) => {
+    const {workoutId} = req.params;
+    const {exercise_id, exercise_order} = req.body;
+    const userId = req.user.id;
 
-        if (!exercise_id) {
-            return res.status(400).json({
-                success: false,
-                message: 'Exercise ID is required'
-            });
-        }
+    validateRequired(exercise_id, 'Exercise ID');
 
-        const workout = await Workout.getWorkoutById(workoutId);
-        
-        if (!workout) {
-            return res.status(404).json({
-                success: false,
-                message: 'Workout not found'
-            });
-        }
+    await verifyWorkoutAccess(workoutId, userId);
+    await verifyExerciseAccess(exercise_id, userId);
 
-        if (workout.user_id !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
-        }
-        
-        const exercise = await Exercise.getExerciseById(exercise_id);
-        if (!exercise) {
-            return res.status(404).json({
-                success: false,
-                message: 'Exercise not found'
-            });
-        }
-
-        if (exercise.is_custom && exercise.creator_id !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
-        }
-
-        let order = exercise_order;
-        if (!order) {
-            const existingExercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
-            order = existingExercises.length + 1;
-        }
-
-        const newWorkoutExercise = await WorkoutExercise.addExerciseToWorkout(workoutId, exercise_id, order);
-        const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
-
-        const addedExercise = exercises.find(ex => ex.id === newWorkoutExercise.id);
-
-        res.status(201).json({
-            success: true,
-            message: 'Exercise added to workout successfully',
-            data: addedExercise
-        });
-        
-    } catch (error) {
-        console.error('Add exercise to workout error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to add exercise to workout',
-            error: error.message
-        });
+    let order = exercise_order;
+    if (!order) {
+        const existingExercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
+        order = existingExercises.length + 1;
     }
-};
+
+    const newWorkoutExercise = await WorkoutExercise.addExerciseToWorkout(workoutId, exercise_id, order);
+    const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
+    const addedExercise = exercises.find(ex => ex.id === newWorkoutExercise.id);
+
+    return createResponse(res, addedExercise, 'Exercise added to workout successfully');
+});
 
 //GET /api/workouts/:workoutId/exercises
+const getWorkoutExercises = asyncHandler(async (req, res) => {
+    const {workoutId} = req.params;
+    const userId = req.user.id;
 
-const getWorkoutExercises = async (req, res) => {
-    try {
-        const {workoutId} = req.params;
-        const userId = req.user.id;
+    await verifyWorkoutAccess(workoutId, userId);
 
-        const workout = await Workout.getWorkoutById(workoutId);
-        
-        if (!workout) {
-            return res.status(404).json({
-                success: false,
-                message: 'Workout not found'
-            });
-        }
-        
-        if (workout.user_id !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
-        }
+    const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
+    
+    const exercisesWithSets = await Promise.all(
+        exercises.map(async (exercise) => {
+            const sets = await WorkoutSet.getSetsByWorkoutExercise(exercise.id);
+            return {
+                ...exercise,
+                sets
+            };
+        })
+    );
 
-        const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
-        
-        const exercisesWithSets = await Promise.all(
-            exercises.map(async (exercise) => {
-                const sets = await WorkoutSet.getSetsByWorkoutExercise(exercise.id);
-                return {
-                    ...exercise,
-                    sets
-                };
-            })
-        );
-
-        res.status(200).json({
-            success: true,
-            data: exercisesWithSets
-        });
-    } catch (error) {
-        console.error('Get workout exercises error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to get workout exercises',
-            error: error.message
-        });
-    }
-
-};
+    return successResponse(res, exercisesWithSets);
+});
 
 //PUT /api/workouts/:workoutId/exercises/:exerciseId/tonnage
-const updateExerciseTonnage = async (req, res) => {
-    try {
-        const {workoutId, exerciseId} = req.params;
-        const userId = req.user.id;
-        
-        const workout = await Workout.getWorkoutById(workoutId);
-        
-        if (!workout) {
-            return res.status(404).json({
-                success: false,
-                message: 'Workout not found'
-            });
-        }
-        
-        if (workout.user_id !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
-        }
+const updateExerciseTonnage = asyncHandler(async (req, res) => {
+    const {workoutId, exerciseId} = req.params;
+    const userId = req.user.id;
+    
+    await verifyWorkoutAccess(workoutId, userId);
 
-        const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
-        const workoutExercise = exercises.find(ex => ex.id === parseInt(exerciseId));
-        
-        if (!workoutExercise) {
-            return res.status(404).json({
-                success: false,
-                message: 'Exercise not found in this workout'
-            });
-        }
-
-       const {exercise_tonnage} = await WorkoutExercise.calculateExerciseTonnage(workoutExercise.id);
-
-       await Workout.calculateTotalTonnage(workoutId);
-       
-        res.status(200).json({
-            success: true,
-            message: 'Exercise tonnage updated successfully',
-            data: {
-                workout_id: workoutId,
-                exercise_id: exerciseId,
-                exercise_tonnage: exercise_tonnage
-            }
-        });
-
-
-    } catch (error) {
-        console.error('Update exercise tonnage error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to update exercise tonnage',
-            error: error.message
-        });
+    const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
+    const workoutExercise = exercises.find(ex => ex.id === parseInt(exerciseId));
+    
+    if (!workoutExercise) {
+        throw new AppError('Exercise not found in this workout', 404);
     }
-};
+
+    const {exercise_tonnage} = await WorkoutExercise.calculateExerciseTonnage(workoutExercise.id);
+    await Workout.calculateTotalTonnage(workoutId);
+   
+    return successResponse(res, {
+        workout_id: workoutId,
+        exercise_id: exerciseId,
+        exercise_tonnage: exercise_tonnage
+    }, 'Exercise tonnage updated successfully');
+});
 
 //DELETE /api/workouts/:workoutId/exercises/:exerciseId
-const deleteExerciseFromWorkout = async (req, res) => {
-    try {
-        const {workoutId, exerciseId} = req.params;
-        const userId = req.user.id;
+const deleteExerciseFromWorkout = asyncHandler(async (req, res) => {
+    const {workoutId, exerciseId} = req.params;
+    const userId = req.user.id;
 
-        const workout = await Workout.getWorkoutById(workoutId);
-        
-        if (!workout) {
-            return res.status(404).json({
-                success: false,
-                message: 'Workout not found'
-            });
-        }
-        
-        if (workout.user_id !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
-        }
+    await verifyWorkoutAccess(workoutId, userId);
 
-        const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
-        const exerciseExists = exercises.find(ex => ex.exercise_id === parseInt(exerciseId));
+    const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
+    const exerciseExists = exercises.find(ex => ex.exercise_id === parseInt(exerciseId));
 
-        if (!exerciseExists) {
-            return res.status(404).json({
-                success: false,
-                message: 'Exercise not found in this workout'
-            });
-        }
-
-        await WorkoutExercise.removeExerciseFromWorkout(workoutId, exerciseId);
-        await Workout.calculateTotalTonnage(workoutId);
-
-        res.status(200).json({
-            success: true,
-            message: 'Exercise removed from workout successfully'
-        });
-
-    } catch (error) {
-        console.error('Delete exercise from workout error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to remove exercise from workout',
-            error: error.message
-        });
+    if (!exerciseExists) {
+        throw new AppError('Exercise not found in this workout', 404);
     }
-};
+
+    await WorkoutExercise.removeExerciseFromWorkout(workoutId, exerciseId);
+    await Workout.calculateTotalTonnage(workoutId);
+
+    return successResponse(res, null, 'Exercise removed from workout successfully');
+});
 
 module.exports = {
     addExerciseToWorkout,

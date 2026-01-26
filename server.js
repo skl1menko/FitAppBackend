@@ -11,7 +11,7 @@ const trainingProgramRoutes = require('./src/routes/trainingProgramRoutes');
 const trainerRoutes = require('./src/routes/trainerRoutes');
 const healthMetricsRoutes = require('./src/routes/healthMetricsRoutes');
 const bodyMeasurementRoutes = require('./src/routes/bodyMeasurementRoutes');
-
+const {errorHandler} = require('./src/utils/errorHandler');
 
 
 const app = express();
@@ -46,7 +46,7 @@ app.use('/api/health-metrics', healthMetricsRoutes);
 
 app.use('/api/body-measurements', bodyMeasurementRoutes);
 
-
+app.use(errorHandler);
 
 initDatabase().then(() => {
     app.listen(PORT, () => {
