@@ -9,6 +9,8 @@ const workoutExerciseRoutes = require('./src/routes/workoutRoutes/workoutExercis
 const workoutSetRoutes = require('./src/routes/workoutRoutes/workoutSetRoutes');
 const trainingProgramRoutes = require('./src/routes/trainingProgramRoutes');
 const trainerRoutes = require('./src/routes/trainerRoutes');
+const healthMetricsRoutes = require('./src/routes/healthMetricsRoutes');
+const bodyMeasurementRoutes = require('./src/routes/bodyMeasurementRoutes');
 
 
 
@@ -39,6 +41,12 @@ app.use('/api/workouts', workoutSetRoutes);
 app.use('/api/programs', trainingProgramRoutes);
 
 app.use('/api/trainers', trainerRoutes);
+
+app.use('/api/health-metrics', healthMetricsRoutes);
+
+app.use('/api/body-measurements', bodyMeasurementRoutes);
+
+
 
 initDatabase().then(() => {
     app.listen(PORT, () => {
