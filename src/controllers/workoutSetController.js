@@ -5,6 +5,7 @@ const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired, validatePositiveNumber, validateRange} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
 const {verifyWorkoutAccess} = require('../utils/accessControl');
+const WorkoutSetDTO = require('../dto/workoutSet.dto');
 
 //POST /api/workouts/:workoutId/exercises/:exerciseId/sets
 const addSet = asyncHandler(async (req, res) => {
@@ -41,7 +42,7 @@ const addSet = asyncHandler(async (req, res) => {
 
     const createdSet = await WorkoutSet.getSetById(newSet.id);
     
-    return createResponse(res, createdSet, 'Set added successfully');
+    return createResponse(res, WorkoutSetDTO.toDetail(createdSet), 'Set added successfully');
 });
 
 //GET /api/workouts/:workoutId/exercises/:exerciseId/sets
@@ -60,7 +61,7 @@ const getExerciseSets = asyncHandler(async (req, res) => {
 
     const sets = await WorkoutSet.getSetsByWorkoutExercise(exerciseId);
 
-    return successResponse(res, sets);
+    return successResponse(res, WorkoutSetDTO.toListArray(sets));
 });
 
 //PUT /api/workouts/:workoutId/exercises/:exerciseId/sets/:setId
@@ -98,7 +99,7 @@ const updateSet = asyncHandler(async (req, res) => {
 
     const updatedSet = await WorkoutSet.getSetById(setId);
     
-    return successResponse(res, updatedSet, 'Set updated successfully');
+    return successResponse(res, WorkoutSetDTO.toDetail(updatedSet), 'Set updated successfully');
 });
 
 //DELETE /api/workouts/:workoutId/exercises/:exerciseId/sets/:setId

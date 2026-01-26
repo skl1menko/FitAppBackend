@@ -4,6 +4,7 @@ const BodyMeasurement = require('../models/BodyMeasurement');
 const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired} = require('../utils/validator');
 const {successResponse, createResponse} = require('../utils/responseHandler');
+const TrainerDTO = require('../dto/trainer.dto');
 
 //GET /api/trainer/clients
 const getClients = asyncHandler(async (req, res) => {
@@ -15,7 +16,7 @@ const getClients = asyncHandler(async (req, res) => {
     }
     
     const clients = await User.getTrainerClients(trainerId);
-    return successResponse(res, clients);
+    return successResponse(res, TrainerDTO.toClientList(clients));
 });
 
 //POST /api/trainer/clients
@@ -50,11 +51,7 @@ const addClient = asyncHandler(async (req, res) => {
     }
     
     await User.assignClientToTrainer(client.id, trainerId);
-    return createResponse(res, {
-        client_id: client.id,
-        client_name: client.full_name,
-        client_email: client.email
-    }, 'Client successfully assigned');
+    return createResponse(res, TrainerDTO.toClientAction(client), 'Client successfully assigned');
 });
 
 //DELETE /api/trainer/clients/:clientId
@@ -79,11 +76,7 @@ const removeClient = asyncHandler(async (req, res) => {
     }
 
     await User.removeClientFromTrainer(clientId, trainerId);
-    return createResponse(res, {
-        client_id: client.id,
-        client_name: client.full_name,
-        client_email: client.email
-    }, 'Client successfully removed');
+    return createResponse(res, TrainerDTO.toClientAction(client), 'Client successfully removed');
 });
 
 //GET /api/trainer/clients/:clientId/workouts
@@ -103,14 +96,7 @@ const getClientWorkouts = asyncHandler(async (req, res) => {
     }
 
     const workouts = await Workout.getUserWorkouts(clientId);
-    return successResponse(res, {
-        client: {
-            id: isMyClient.id,
-            full_name: isMyClient.full_name,
-            email: isMyClient.email
-        },
-        workouts: workouts
-    });
+    return successResponse(res, TrainerDTO.toClientWorkouts(isMyClient, workouts));
 });
 
 //GET /api/trainer/clients/:clientId/body-measurements
@@ -135,21 +121,13 @@ const getClientBodyMeasurements = asyncHandler(async (req, res) => {
     const totalWorkouts = workouts.length;
     const totalTonnage = workouts.reduce((sum, w) => sum + (parseFloat(w.total_tonnage) || 0), 0);
     const recentWorkouts = workouts.slice(0, 5);
+    const statistics = {
+        total_workouts: totalWorkouts,
+        total_tonnage: totalTonnage,
+        avg_tonnage_per_workout: totalWorkouts > 0 ? (totalTonnage / totalWorkouts).toFixed(2) : 0
+    }
 
-    return successResponse(res, {
-        client: {
-            id: isMyClient.id,
-            full_name: isMyClient.full_name,
-            email: isMyClient.email
-        },
-        statistics: {
-            total_workouts: totalWorkouts,
-            total_tonnage: totalTonnage,
-            avg_tonnage_per_workout: totalWorkouts > 0 ? (totalTonnage / totalWorkouts).toFixed(2) : 0
-        },
-        latest_body_measurement: latestMeasurement || null,
-        recent_workouts: recentWorkouts
-    });
+    return successResponse(res, TrainerDTO.toClientStatistics(isMyClient, statistics, latestMeasurement, recentWorkouts));
 });
 
 module.exports = {

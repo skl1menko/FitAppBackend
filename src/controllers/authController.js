@@ -1,11 +1,11 @@
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const {generateToken} = require('../middleware/authMiddleware');
 const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
+const UserDTO = require('../dto/user.dto');
 
 //POST /api/auth/register
 const register = asyncHandler(async (req, res) => {
@@ -32,14 +32,9 @@ const register = asyncHandler(async (req, res) => {
 
     const newUser = await User.createUser(email, hashedPassword, full_name, userRole.id);
     const token = generateToken(newUser.id);
+    const userWithRole = {...newUser, role_name: userRole.name, full_name: newUser.full_name};
     
-    return createResponse(res, {
-        userId: newUser.id,
-        email,
-        fullName: full_name,
-        role: userRole.name,
-        token
-    }, 'User registered successfully');
+    return createResponse(res, UserDTO.toAuth(userWithRole, token),'User registered successfully');
 });
 
 //POST /api/auth/login
@@ -61,13 +56,9 @@ const login = asyncHandler(async (req, res) => {
 
     const token = generateToken(user.id);
 
-    return successResponse(res, {
-        userId: user.id,
-        email: user.email,
-        fullName: user.full_name,
-        role: user.role_name,
-        token
-    }, 'Login successful');
+
+
+    return successResponse(res, UserDTO.toAuth(user, token),'Login successful');
 });
 
 //GET /api/auth/profile
@@ -79,13 +70,15 @@ const getProfile = asyncHandler(async (req, res) => {
         throw new AppError('User not found', 404);
     }
 
-    return successResponse(res, {
-        userId: user.id,
-        email: user.email,
-        fullName: user.full_name,
-        role: user.role_name,
-        created_at: user.created_at
-    });
+    return successResponse(res, UserDTO.toProfile(user));
+});
+
+//GET /api/auth/users
+
+const getAllUser = asyncHandler(async (req, res) => {
+    
+    const users = await User.getAllUsers();
+    return successResponse(res, UserDTO.toListArray(users));
 });
 
 //PUT /api/auth/profile
@@ -98,18 +91,14 @@ const updateProfile = asyncHandler(async (req, res) => {
     await User.updateUser(userId, full_name);
     const updatedUser = await User.findUserById(userId);
     
-    return successResponse(res, {
-        userId: updatedUser.id,
-        email: updatedUser.email,
-        fullName: updatedUser.full_name,
-        role: updatedUser.role_name
-    }, 'Profile updated successfully');
+    return successResponse(res, UserDTO.toList(updatedUser), 'Profile updated successfully');
 });
 
 module.exports = {
     register,
     login,
     getProfile,
+    getAllUser,
     updateProfile
 };
 

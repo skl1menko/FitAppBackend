@@ -6,6 +6,8 @@ const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
 const {verifyWorkoutAccess, verifyExerciseAccess} = require('../utils/accessControl');
+const WorkoutExerciseDTO = require('../dto/workoutExercise.dto');
+const WorkoutSetDTO = require('../dto/workoutSet.dto');
 
 //POST /api/workouts/:workoutId/exercises
 const addExerciseToWorkout = asyncHandler(async (req, res) => {
@@ -28,7 +30,7 @@ const addExerciseToWorkout = asyncHandler(async (req, res) => {
     const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
     const addedExercise = exercises.find(ex => ex.id === newWorkoutExercise.id);
 
-    return createResponse(res, addedExercise, 'Exercise added to workout successfully');
+    return createResponse(res, WorkoutExerciseDTO.toDetail(addedExercise), 'Exercise added to workout successfully');
 });
 
 //GET /api/workouts/:workoutId/exercises
@@ -43,10 +45,7 @@ const getWorkoutExercises = asyncHandler(async (req, res) => {
     const exercisesWithSets = await Promise.all(
         exercises.map(async (exercise) => {
             const sets = await WorkoutSet.getSetsByWorkoutExercise(exercise.id);
-            return {
-                ...exercise,
-                sets
-            };
+            return WorkoutExerciseDTO.toDetailWithSets(exercise, WorkoutSetDTO.toListArray(sets));
         })
     );
 
@@ -70,11 +69,10 @@ const updateExerciseTonnage = asyncHandler(async (req, res) => {
     const {exercise_tonnage} = await WorkoutExercise.calculateExerciseTonnage(workoutExercise.id);
     await Workout.calculateTotalTonnage(workoutId);
    
-    return successResponse(res, {
-        workout_id: workoutId,
-        exercise_id: exerciseId,
-        exercise_tonnage: exercise_tonnage
-    }, 'Exercise tonnage updated successfully');
+    return successResponse(res, 
+        WorkoutExerciseDTO.toTonnageUpdate(workoutId, exerciseId, exercise_tonnage),
+        'Exercise tonnage updated successfully'
+    );
 });
 
 //DELETE /api/workouts/:workoutId/exercises/:exerciseId

@@ -2,6 +2,7 @@ const Exercise = require('../models/Exercise');
 const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired} = require('../utils/validator');
 const {successResponse, createResponse} = require('../utils/responseHandler');
+const ExerciseDTO = require('../dto/exercise.dto');
 
 //POST /api/exercises
 const createExercise = asyncHandler(async (req, res) => {
@@ -24,7 +25,7 @@ const createExercise = asyncHandler(async (req, res) => {
 
     const exercise = await Exercise.getExerciseById(newExercise.id);
 
-    return createResponse(res, exercise, 'Exercise created successfully');
+    return createResponse(res, ExerciseDTO.toDetail(exercise), 'Exercise created successfully');
 });
 
 //GET /api/exercises
@@ -36,7 +37,7 @@ const getAllExercises = asyncHandler(async (req, res) => {
         !exercise.is_custom || exercise.creator_id === userId
     );
 
-    return successResponse(res, filteredExercises);
+    return successResponse(res, ExerciseDTO.toListArray(filteredExercises));
 });
 
 //GET /api/exercises/muscle/:group
@@ -50,7 +51,7 @@ const getExercisesByMuscleGroup = asyncHandler(async (req, res) => {
         !exercise.is_custom || exercise.creator_id === userId
     );
 
-    return successResponse(res, filteredExercises);
+    return successResponse(res, ExerciseDTO.toListArray(filteredExercises));
 });
 
 //GET /api/exercises/my
@@ -58,7 +59,7 @@ const getMyCustomExercises = asyncHandler(async (req, res) => {
     const userId = req.user.id;
     const myExercises = await Exercise.getExerciseByCreator(userId);
 
-    return successResponse(res, myExercises);
+    return successResponse(res, ExerciseDTO.toListArray(myExercises));
 });
 
 //GET /api/exercises/:id
@@ -76,7 +77,7 @@ const getExerciseById = asyncHandler(async (req, res) => {
         throw new AppError('Access denied', 403);
     }
 
-    return successResponse(res, exercise);
+    return successResponse(res, ExerciseDTO.toDetail(exercise));
 });
 
 //PUT /api/exercises/:id
@@ -105,7 +106,7 @@ const updateExercise = asyncHandler(async (req, res) => {
     await Exercise.updateExercise(id, name, muscle_group, description);
     const updatedExercise = await Exercise.getExerciseById(id);
 
-    return successResponse(res, updatedExercise, 'Exercise updated successfully');
+    return successResponse(res, ExerciseDTO.toDetail(updatedExercise), 'Exercise updated successfully');
 });
 
 //DELETE /api/exercises/:id
