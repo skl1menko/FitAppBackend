@@ -14,9 +14,12 @@ const bodyMeasurementRoutes = require('./src/routes/bodyMeasurementRoutes');
 const {errorHandler} = require('./src/utils/errorHandler');
 
 
+
 const app = express();
+const passport = require('./src/config/passport');
 app.use(cors());
 app.use(express.json());
+app.use(passport.initialize());
 
 const PORT = process.env.PORT || 3000;
 
