@@ -43,15 +43,22 @@ class HealthMetrics{
         return result.rows;
     }
 
-    static async getMetricsByDateRange(userId, startDate, endDate){
-        const result = await pool.query(
-            `SELECT * FROM health_metrics
+    static async getMetricsByDateRange(userId, startDate, endDate, periodType = null){
+        let query = `SELECT * FROM health_metrics
             WHERE user_id = $1
-            AND start_date >= $2
-            AND end_date <= $3
-            ORDER BY start_date DESC`,
-            [userId, startDate, endDate]
-        );
+            AND DATE(start_date) >= DATE($2)
+            AND DATE(end_date) <= DATE($3)`;
+        
+        const params = [userId, startDate, endDate];
+        
+        if (periodType) {
+            query += ` AND period_type = $4`;
+            params.push(periodType);
+        }
+        
+        query += ` ORDER BY start_date DESC`;
+        
+        const result = await pool.query(query, params);
         return result.rows;
     }
 
@@ -61,6 +68,26 @@ class HealthMetrics{
             WHERE workout_id = $1`,
             [workoutId]
         );
+        return result.rows;
+    }
+
+    static async findExistingMetric(userId, periodType, startDate, endDate, workoutId = null){
+        let query = `SELECT * FROM health_metrics
+            WHERE user_id = $1
+            AND period_type = $2
+            AND DATE(start_date) = DATE($3)
+            AND DATE(end_date) = DATE($4)`;
+        
+        const params = [userId, periodType, startDate, endDate];
+        
+        if (workoutId) {
+            query += ` AND workout_id = $5`;
+            params.push(workoutId);
+        } else {
+            query += ` AND workout_id IS NULL`;
+        }
+        
+        const result = await pool.query(query, params);
         return result.rows[0];
     }
 
@@ -73,25 +100,31 @@ class HealthMetrics{
                 step_count = $2,
                 avg_heart_rate = $3,
                 source_name = $4
-            WHERE id = $5`,
+            WHERE id = $5
+            RETURNING id`,
             [totalEnergyBurned, stepCount, avgHeartRate, sourceName, id]
         );
-        return {changes: result.rowCount};
+        return {id: result.rows[0].id, changes: result.rowCount};
     }
 
     static async getAverageMetrics(userId, periodType, startDate, endDate){
-        const result = await pool.query(
-            `SELECT
-            AVG(total_energy_burned) as avg_energy_burned,
-            AVG(step_count) as avg_step_count,
+        let query = `SELECT
+            SUM(total_energy_burned) as total_energy_burned,
+            SUM(step_count) as total_step_count,
             AVG(avg_heart_rate) as avg_heart_rate
             FROM health_metrics
             WHERE user_id = $1
-            AND period_type = $2
-            AND start_date >= $3
-            AND end_date <= $4`,
-            [userId, periodType, startDate, endDate]
-        );
+            AND DATE(start_date) >= DATE($2)
+            AND DATE(end_date) <= DATE($3)`;
+        
+        const params = [userId, startDate, endDate];
+        
+        if (periodType) {
+            query += ` AND period_type = $4`;
+            params.push(periodType);
+        }
+        
+        const result = await pool.query(query, params);
         return result.rows[0];
     }
 

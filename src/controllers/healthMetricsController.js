@@ -39,18 +39,52 @@ const syncHealthMetricsIOS = asyncHandler(async (req, res) => {
         sourceName: source_name || 'Apple Health'
     };
 
-    const newMetrics = await HealthMetrics.createMetrics(
-        userId,
-        workout_id || null,
-        period_type,
-        new Date(start_date),
-        new Date(end_date),
-        metricsData
-    );
+    const startDateObj = new Date(start_date);
+    const endDateObj = new Date(end_date);
 
-    const createMetrics = await HealthMetrics.getMetricsById(newMetrics.id);
+    // Для периодических метрик (daily, weekly, monthly) проверяем существующую запись
+    let metricsId;
+    if (period_type !== 'workout') {
+        const existingMetric = await HealthMetrics.findExistingMetric(
+            userId,
+            period_type,
+            startDateObj,
+            endDateObj,
+            workout_id || null
+        );
+
+        if (existingMetric) {
+            // Обновляем существующую запись
+            await HealthMetrics.updateMetrics(existingMetric.id, metricsData);
+            metricsId = existingMetric.id;
+        } else {
+            // Создаем новую запись
+            const newMetrics = await HealthMetrics.createMetrics(
+                userId,
+                workout_id || null,
+                period_type,
+                startDateObj,
+                endDateObj,
+                metricsData
+            );
+            metricsId = newMetrics.id;
+        }
+    } else {
+        // Для тренировок всегда создаем новую запись
+        const newMetrics = await HealthMetrics.createMetrics(
+            userId,
+            workout_id || null,
+            period_type,
+            startDateObj,
+            endDateObj,
+            metricsData
+        );
+        metricsId = newMetrics.id;
+    }
+
+    const createMetrics = await HealthMetrics.getMetricsById(metricsId);
     
-    return createResponse(res, HealthMetricsDTO.toDetail(createMetrics), 'Health metrics created successfully');
+    return createResponse(res, HealthMetricsDTO.toDetail(createMetrics), 'Health metrics synced successfully');
 });
 
 //GET /api/health-metrics
@@ -106,10 +140,13 @@ const getHealthMetricsByPeriod = asyncHandler(async (req, res) => {
         throw new AppError('Invalid date format', 400);
     }
 
-    const detailedMetrics = await HealthMetrics.getMetricsByDateRange(userId, startDate, endDate);
+    // Получаем все метрики за период для детализации (включая тренировки)
+    const allMetrics = await HealthMetrics.getMetricsByDateRange(userId, startDate, endDate, null);
+    
+    // Средние значения считаем только по метрикам указанного типа (без тренировок, чтобы избежать двойного подсчета)
     const avgMetrics = await HealthMetrics.getAverageMetrics(userId, type, startDate, endDate);
     
-    return successResponse(res, HealthMetricsDTO.toPeriodSummary(type, startDate, endDate, avgMetrics, detailedMetrics));
+    return successResponse(res, HealthMetricsDTO.toPeriodSummary(type, startDate, endDate, avgMetrics, allMetrics));
 });
 
 module.exports = {
