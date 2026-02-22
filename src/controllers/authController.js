@@ -63,14 +63,11 @@ const login = asyncHandler(async (req, res) => {
 
 //GET /api/auth/profile
 const getProfile = asyncHandler(async (req, res) => {
-    console.log('🔍 getProfile called');
-    console.log('req.user:', req.user);
+    
     
     const userId = req.user.id;
-    console.log('userId:', userId);
     
     const user = await User.findUserById(userId);
-    console.log('user from DB:', user);
 
     if (!user) {
         throw new AppError('User not found', 404);

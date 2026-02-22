@@ -11,9 +11,7 @@ const generateToken = (userId, expiresIn = '30d') => {
 
 const verifyToken = async (req, res, next) => {
     try{
-        console.log('🔐 verifyToken middleware called');
         const authHeader = req.headers.authorization;
-        console.log('authHeader:', authHeader);
 
         if(!authHeader || !authHeader.startsWith('Bearer ')){
             console.log('❌ No token provided');
@@ -24,16 +22,12 @@ const verifyToken = async (req, res, next) => {
         }
 
         const token = authHeader.substring(7);
-        console.log('token extracted:', token.substring(0, 20) + '...');
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log('decoded token:', decoded);
         
         const user = await User.findUserById(decoded.userId);
-        console.log('user found:', user);
 
         if(!user){
-            console.log('❌ User not found');
             return res.status(401).json({
                 success: false,
                 message: 'User not found'
