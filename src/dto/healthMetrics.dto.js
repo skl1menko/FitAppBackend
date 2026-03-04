@@ -25,7 +25,7 @@ class HealthMetricsDTO{
             endDate: this.formatDate(healthMetric.end_date, healthMetric.period_type),
             totalEnergyBurned: healthMetric.total_energy_burned,
             totalStepCount: healthMetric.step_count,
-            averageHeartRate: healthMetric.avg_heart_rate
+            avgHeartRate: healthMetric.avg_heart_rate
         }
     }
 
@@ -38,7 +38,7 @@ class HealthMetricsDTO{
             endDate: this.formatDate(healthMetric.end_date, healthMetric.period_type),
             totalEnergyBurned: healthMetric.total_energy_burned,
             totalStepCount: healthMetric.total_step_count,
-            averageHeartRate: healthMetric.average_heart_rate,
+            avgHeartRate: healthMetric.average_heart_rate,
             sourceName: healthMetric.source_name,
             createdAt: healthMetric.created_at
         }
@@ -49,11 +49,6 @@ class HealthMetricsDTO{
             periodType: type,
             startDate: this.formatDateOnly(startDate),
             endDate: this.formatDateOnly(endDate),
-            averageMetrics: {
-                totalEnergyBurned: avgMetrics.total_energy_burned,
-                totalStepCount: avgMetrics.total_step_count,
-                avgHeartRate: avgMetrics.avg_heart_rate
-            },
             totalEntries: detailedMetrics.length,
             detailedMetrics: detailedMetrics.map(m => this.toList(m))
         }

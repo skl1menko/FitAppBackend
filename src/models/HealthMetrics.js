@@ -47,7 +47,7 @@ class HealthMetrics{
         let query = `SELECT * FROM health_metrics
             WHERE user_id = $1
             AND DATE(start_date) >= DATE($2)
-            AND DATE(end_date) <= DATE($3)`;
+            AND DATE(start_date) <= DATE($3)`;
         
         const params = [userId, startDate, endDate];
         
@@ -115,7 +115,7 @@ class HealthMetrics{
             FROM health_metrics
             WHERE user_id = $1
             AND DATE(start_date) >= DATE($2)
-            AND DATE(end_date) <= DATE($3)`;
+            AND DATE(start_date) <= DATE($3)`;
         
         const params = [userId, startDate, endDate];
         
