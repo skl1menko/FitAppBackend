@@ -39,8 +39,8 @@ const syncHealthMetricsIOS = asyncHandler(async (req, res) => {
         sourceName: source_name || 'Apple Health'
     };
 
-    const startDateObj = new Date(start_date);
-    const endDateObj = new Date(end_date);
+    const startDateObj = new Date(start_date + 'T00:00:00');
+    const endDateObj = new Date(end_date + 'T00:00:00');
 
     // Для периодических метрик (daily, weekly, monthly) проверяем существующую запись
     let metricsId;
@@ -133,8 +133,8 @@ const getHealthMetricsByPeriod = asyncHandler(async (req, res) => {
     validateRequired(start_date, 'Start date');
     validateRequired(end_date, 'End date');
 
-    const startDate = new Date(start_date);
-    const endDate = new Date(end_date);
+    const startDate = new Date(start_date + 'T00:00:00');
+    const endDate = new Date(end_date + 'T00:00:00');
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
         throw new AppError('Invalid date format', 400);
