@@ -97,8 +97,13 @@ const initDatabase = async () => {
                 end_time TIMESTAMP,
                 notes TEXT,
                 total_tonnage DECIMAL(10,2) DEFAULT 0,
+                calories_burned DECIMAL(10,2),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+        // migration: add calories_burned to existing installations
+        await client.query(`
+            ALTER TABLE workouts ADD COLUMN IF NOT EXISTS calories_burned DECIMAL(10,2);
         `);
         //workout_exercises table
         await client.query(`

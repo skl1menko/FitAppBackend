@@ -39,8 +39,8 @@ const syncHealthMetricsIOS = asyncHandler(async (req, res) => {
         sourceName: source_name || 'Apple Health'
     };
 
-    const startDateObj = new Date(start_date + 'T00:00:00');
-    const endDateObj = new Date(end_date + 'T00:00:00');
+    const startDateObj = new Date(start_date);
+    const endDateObj = new Date(end_date);
 
     // Для периодических метрик (daily, weekly, monthly) проверяем существующую запись
     let metricsId;
@@ -140,8 +140,8 @@ const getHealthMetricsByPeriod = asyncHandler(async (req, res) => {
         throw new AppError('Invalid date format', 400);
     }
 
-    // Получаем все метрики за период для детализации (включая тренировки)
-    const allMetrics = await HealthMetrics.getMetricsByDateRange(userId, startDate, endDate, null);
+    // Детализация всегда по daily-записям (одна точка = один день)
+    const allMetrics = await HealthMetrics.getMetricsByDateRange(userId, startDate, endDate, 'daily');
     
     // Средние значения считаем только по метрикам указанного типа (без тренировок, чтобы избежать двойного подсчета)
     const avgMetrics = await HealthMetrics.getAverageMetrics(userId, type, startDate, endDate);

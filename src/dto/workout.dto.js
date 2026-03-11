@@ -8,7 +8,8 @@ class WorkoutDTO{
             programName: workout.program_name,
             startTime: workout.start_time,
             endTime: workout.end_time,
-            totalTonnage: workout.total_tonnage
+            totalTonnage: workout.total_tonnage,
+            caloriesBurned: workout.calories_burned
         }
     }
     // Детальна версія (без exercises)
@@ -23,6 +24,7 @@ class WorkoutDTO{
             startTime: workout.start_time,
             endTime: workout.end_time,
             totalTonnage: workout.total_tonnage,
+            caloriesBurned: workout.calories_burned,
             notes: workout.notes,
             createdAt: workout.created_at,
             updatedAt: workout.updated_at
@@ -41,6 +43,7 @@ class WorkoutDTO{
             startTime: workout.start_time,
             endTime: workout.end_time,
             totalTonnage: workout.total_tonnage,
+            caloriesBurned: workout.calories_burned,
             notes: workout.notes,
             createdAt: workout.created_at,
             updatedAt: workout.updated_at,

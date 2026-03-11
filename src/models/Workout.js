@@ -82,6 +82,10 @@ class Workout{
             fields.push(`total_tonnage = $${paramIndex++}`);
             values.push(updates.totalTonnage);
         }
+        if (updates.caloriesBurned !== undefined) {
+            fields.push(`calories_burned = $${paramIndex++}`);
+            values.push(updates.caloriesBurned);
+        }
 
         if (fields.length === 0) {
             return {changes: 0};
