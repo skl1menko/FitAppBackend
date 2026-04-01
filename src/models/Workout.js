@@ -51,7 +51,8 @@ class Workout{
 
     static async getUserWorkouts(userId){
         const result = await pool.query(
-            `SELECT w.*, tp.name as program_name
+            `SELECT w.*, tp.name as program_name,
+            (SELECT COUNT(*) FROM workout_exercises we WHERE we.workout_id = w.id) as exercise_count
             FROM workouts w
             LEFT JOIN training_programs tp ON w.program_id = tp.id
             WHERE w.user_id = $1

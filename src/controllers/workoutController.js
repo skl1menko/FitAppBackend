@@ -72,7 +72,7 @@ const getWorkoutByDateRange = asyncHandler(async (req, res) => {
 //PUT /api/workouts/:id
 const updateWorkout = asyncHandler(async (req, res) => {
     const {id} = req.params;
-    const {name, notes, end_time, calories_burned} = req.body;
+    const {name, notes, end_time, calories_burned, program_id } = req.body;
     const userId = req.user.id;
 
     await verifyWorkoutAccess(id, userId);
@@ -86,6 +86,7 @@ const updateWorkout = asyncHandler(async (req, res) => {
     if (notes !== undefined) updates.notes = notes;
     if (calories_burned !== undefined) updates.caloriesBurned = calories_burned;
     updates.totalTonnage = totalTonnage;
+    if (program_id !== undefined) updates.programId = program_id;
 
     await Workout.updateWorkout(id, updates);
     const updatedWorkout = await Workout.getWorkoutById(id);

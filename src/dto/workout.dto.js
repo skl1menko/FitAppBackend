@@ -9,7 +9,8 @@ class WorkoutDTO{
             startTime: workout.start_time,
             endTime: workout.end_time,
             totalTonnage: workout.total_tonnage,
-            caloriesBurned: workout.calories_burned
+            caloriesBurned: workout.calories_burned,
+            exerciseCount: parseInt(workout.exercise_count) || 0
         }
     }
     // Детальна версія (без exercises)
