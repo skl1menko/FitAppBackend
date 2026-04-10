@@ -6,7 +6,7 @@ const ExerciseDTO = require('../dto/exercise.dto');
 
 //POST /api/exercises
 const createExercise = asyncHandler(async (req, res) => {
-    const {name, muscle_group, description, is_custom} = req.body;
+    const {name, muscle_group, description, image_url, is_custom} = req.body;
     const userId = req.user.id;
 
     validateRequired(name, 'Name');
@@ -20,7 +20,8 @@ const createExercise = asyncHandler(async (req, res) => {
         muscle_group,
         isCustom,
         creatorId,
-        description
+        description,
+        image_url
     );
 
     const exercise = await Exercise.getExerciseById(newExercise.id);
@@ -83,7 +84,7 @@ const getExerciseById = asyncHandler(async (req, res) => {
 //PUT /api/exercises/:id
 const updateExercise = asyncHandler(async (req, res) => {
     const {id} = req.params;
-    const {name, muscle_group, description} = req.body;
+    const {name, muscle_group, description, image_url} = req.body;
     const userId = req.user.id;
 
     validateRequired(name, 'Name');
@@ -103,7 +104,7 @@ const updateExercise = asyncHandler(async (req, res) => {
         throw new AppError('You can only edit your own custom exercises', 403);
     }
 
-    await Exercise.updateExercise(id, name, muscle_group, description);
+    await Exercise.updateExercise(id, name, muscle_group, description, image_url);
     const updatedExercise = await Exercise.getExerciseById(id);
 
     return successResponse(res, ExerciseDTO.toDetail(updatedExercise), 'Exercise updated successfully');
