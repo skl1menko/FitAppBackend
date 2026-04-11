@@ -5,7 +5,8 @@ class ExerciseDTO{
             exerciseId: exercise.id,
             exerciseName: exercise.name,
             muscleGroup: exercise.muscle_group,
-            isCustom: exercise.is_custom
+            isCustom: exercise.is_custom,
+            imageUrl: exercise.image_url
         }
     }
 
@@ -18,6 +19,7 @@ class ExerciseDTO{
             isCustom: exercise.is_custom,
             creatorId: exercise.creator_id,
             description: exercise.description,
+            imageUrl: exercise.image_url,
             createdAt: exercise.created_at
         }
     }

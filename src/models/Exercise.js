@@ -1,12 +1,12 @@
 const {pool} = require('../config/database');
 
 class Exercise{
-    static async createExercise(name,muscleGroup,isCustom,creatorId,description){
+    static async createExercise(name,muscleGroup,isCustom,creatorId,description,imageUrl){
         const result = await pool.query(
-            `INSERT INTO exercises(name, muscle_group, is_custom, creator_id, description)
-            VALUES($1, $2, $3, $4, $5) 
+            `INSERT INTO exercises(name, muscle_group, is_custom, creator_id, description, image_url)
+            VALUES($1, $2, $3, $4, $5, $6) 
             RETURNING id`,
-            [name, muscleGroup, isCustom, creatorId, description]
+            [name, muscleGroup, isCustom, creatorId, description, imageUrl || null]
         );
         return {id: result.rows[0].id};
     }
@@ -47,12 +47,12 @@ class Exercise{
         return result.rows;
     }
 
-    static async updateExercise(id, name, muscleGroup, description){
+    static async updateExercise(id, name, muscleGroup, description, imageUrl){
         const result = await pool.query(
             `UPDATE exercises
-            SET name = $1, muscle_group = $2, description = $3
-            WHERE id = $4`,
-            [name, muscleGroup, description, id]
+            SET name = $1, muscle_group = $2, description = $3, image_url = $4
+            WHERE id = $5`,
+            [name, muscleGroup, description, imageUrl || null, id]
         );
         return {changes: result.rowCount};
     }

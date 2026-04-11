@@ -54,10 +54,14 @@ const initDatabase = async () => {
                 name VARCHAR(255) NOT NULL,
                 muscle_group VARCHAR(100) NOT NULL,
                 description TEXT,
+                image_url TEXT,
                 is_custom BOOLEAN DEFAULT FALSE,
                 creator_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+        await client.query(`
+            ALTER TABLE exercises ADD COLUMN IF NOT EXISTS image_url TEXT;
         `);
         //index on muscle_group for faster searches
         await client.query(`
