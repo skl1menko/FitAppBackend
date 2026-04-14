@@ -3,6 +3,31 @@ const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired} = require('../utils/validator');
 const {successResponse, createResponse} = require('../utils/responseHandler');
 const ExerciseDTO = require('../dto/exercise.dto');
+const cloudinary = require('../config/cloudinary');
+const streamifier = require('streamifier');
+
+const extractCloudinaryPublicId = (imageUrl) => {
+    if (!imageUrl || typeof imageUrl !== 'string') return null;
+
+    try {
+        const parsed = new URL(imageUrl);
+        if (!parsed.hostname.includes('res.cloudinary.com')) return null;
+
+        // Example pathname:
+        // /<cloud>/image/upload/v1234567890/folder/name.webp
+        const uploadMarker = '/image/upload/';
+        const markerIndex = parsed.pathname.indexOf(uploadMarker);
+        if (markerIndex === -1) return null;
+
+        const afterUpload = parsed.pathname.slice(markerIndex + uploadMarker.length);
+        const withoutVersion = afterUpload.replace(/^v\d+\//, '');
+        const withoutExtension = withoutVersion.replace(/\.[^/.]+$/, '');
+
+        return decodeURIComponent(withoutExtension);
+    } catch {
+        return null;
+    }
+};
 
 //POST /api/exercises
 const createExercise = asyncHandler(async (req, res) => {
@@ -129,9 +154,47 @@ const deleteExercise = asyncHandler(async (req, res) => {
         throw new AppError('You can only delete your own custom exercises', 403);
     }
 
+    const publicId = extractCloudinaryPublicId(exercise.image_url);
+    if (publicId) {
+        try {
+            await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+        } catch (error) {
+            // Do not block exercise deletion if Cloudinary cleanup fails.
+            console.warn('Cloudinary delete failed for public_id:', publicId, error?.message);
+        }
+    }
+
     await Exercise.deleteExerciseById(id);
 
     return successResponse(res, null, 'Exercise deleted successfully');
+});
+
+//POST /api/exercises/upload-image
+const uploadExerciseImage = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        throw new AppError('Image file is required', 400);
+    }
+
+    const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                folder: 'fitapp/exercises',
+                resource_type: 'image'
+            },
+            (error, result) => {
+                if (error) {
+                    return reject(error);
+                }
+                return resolve(result);
+            }
+        );
+
+        streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+    });
+
+    return successResponse(res, {
+        imageUrl: uploadResult.secure_url
+    }, 'Image uploaded successfully');
 });
 
 module.exports = {
@@ -141,5 +204,6 @@ module.exports = {
     getMyCustomExercises,
     getExerciseById,
     updateExercise,
-    deleteExercise
+    deleteExercise,
+    uploadExerciseImage
 };

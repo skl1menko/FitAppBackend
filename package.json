@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
+    "ngrok" : "ngrok http 3000",
     "seed:exercises": "node src/seeds/seedExercises.js"
   },
   "keywords": [],
