@@ -11,7 +11,7 @@ const WorkoutSetDTO = require('../dto/workoutSet.dto');
 
 //POST /api/workouts
 const createWorkout = asyncHandler(async (req, res) => {
-    const {program_id, name, notes} = req.body;
+    const {program_id, name, notes} = req.body || {};
     const userId = req.user.id;
     const startTime = new Date();
 
