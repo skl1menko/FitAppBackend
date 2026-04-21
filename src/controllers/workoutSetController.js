@@ -125,7 +125,7 @@ const deleteSet = asyncHandler(async (req, res) => {
         throw new AppError('Set does not belong to the specified exercise in this workout', 400);
     }
 
-    await WorkoutSet.deleteWorkoutSet(setId);
+    await WorkoutSet.deleteWorkoutSetById(setId);
     await WorkoutExercise.calculateExerciseTonnage(exerciseId);
     await Workout.calculateTotalTonnage(workoutId);
 

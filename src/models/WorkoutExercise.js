@@ -13,7 +13,7 @@ class WorkoutExercise{
 
     static async getExercisesByWorkoutId(workoutId){
         const result = await pool.query(
-            `SELECT we.*, e.name as exercise_name, e.muscle_group
+            `SELECT we.*, e.name as exercise_name, e.muscle_group, e.image_url
             FROM workout_exercises we
             JOIN exercises e ON we.exercise_id = e.id
             WHERE we.workout_id = $1

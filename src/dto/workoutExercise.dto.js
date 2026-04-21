@@ -7,6 +7,7 @@ class WorkoutExerciseDTO {
             exerciseId: workoutExercise.exercise_id,
             exerciseName: workoutExercise.exercise_name,
             muscleGroup: workoutExercise.muscle_group,
+            imageUrl: workoutExercise.image_url,
             orderIndex: workoutExercise.order_index,
             exerciseTonnage: workoutExercise.exercise_tonnage
         };
@@ -20,6 +21,7 @@ class WorkoutExerciseDTO {
             exerciseId: workoutExercise.exercise_id,
             exerciseName: workoutExercise.exercise_name,
             muscleGroup: workoutExercise.muscle_group,
+            imageUrl: workoutExercise.image_url,
             orderIndex: workoutExercise.order_index,
             exerciseTonnage: workoutExercise.exercise_tonnage,
             sets: sets // WorkoutSetDTO.toListArray(sets)
