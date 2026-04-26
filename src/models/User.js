@@ -72,10 +72,19 @@ class User{
     static async assignClientToTrainer(clientId, trainerId){
         const result = await pool.query(
             `INSERT INTO trainer_clients(client_id, trainer_id)
-            VALUES($1, $2)`,
+            VALUES($1, $2)
+            ON CONFLICT (client_id)
+            DO UPDATE SET
+                trainer_id = EXCLUDED.trainer_id,
+                assigned_at = CURRENT_TIMESTAMP
+            RETURNING client_id, trainer_id`,
             [clientId, trainerId]
         );
-        return {success: true};
+        return {
+            success: true,
+            clientId: result.rows[0].client_id,
+            trainerId: result.rows[0].trainer_id
+        };
     }
 
     static async removeClientFromTrainer(clientId, trainerId){

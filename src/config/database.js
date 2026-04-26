@@ -47,6 +47,38 @@ const initDatabase = async () => {
                 PRIMARY KEY (trainer_id, client_id)
             )
         `);
+        // enforce one trainer per client: keep only the latest assignment for legacy rows
+        await client.query(`
+            WITH ranked AS (
+                SELECT
+                    trainer_id,
+                    client_id,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY client_id
+                        ORDER BY assigned_at DESC, trainer_id DESC
+                    ) AS rn
+                FROM trainer_clients
+            )
+            DELETE FROM trainer_clients tc
+            USING ranked r
+            WHERE tc.trainer_id = r.trainer_id
+              AND tc.client_id = r.client_id
+              AND r.rn > 1
+        `);
+        await client.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'trainer_clients_client_id_unique'
+                      AND conrelid = 'trainer_clients'::regclass
+                ) THEN
+                    ALTER TABLE trainer_clients
+                    ADD CONSTRAINT trainer_clients_client_id_unique UNIQUE (client_id);
+                END IF;
+            END $$;
+        `);
         //exercises table
         await client.query(`
             CREATE TABLE IF NOT EXISTS exercises (
