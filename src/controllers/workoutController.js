@@ -11,16 +11,20 @@ const WorkoutSetDTO = require('../dto/workoutSet.dto');
 
 //POST /api/workouts
 const createWorkout = asyncHandler(async (req, res) => {
-    const {program_id, name, notes} = req.body || {};
+    const {program_id, name, notes, start_time, is_started} = req.body || {};
     const userId = req.user.id;
-    const startTime = new Date();
+    const isStarted = is_started !== undefined ? Boolean(is_started) : true;
+    const startTime = start_time
+        ? new Date(start_time)
+        : (isStarted ? new Date() : null);
 
     const newWorkout = await Workout.createWorkout(
         userId,
         program_id || null,
         startTime,
         name || null,
-        notes || null
+        notes || null,
+        isStarted
     );
 
     const workout = await Workout.getWorkoutById(newWorkout.id);
@@ -72,12 +76,13 @@ const getWorkoutByDateRange = asyncHandler(async (req, res) => {
 //PUT /api/workouts/:id
 const updateWorkout = asyncHandler(async (req, res) => {
     const {id} = req.params;
-    const {name, notes, end_time, calories_burned, program_id } = req.body;
+    const {name, notes, end_time, calories_burned, program_id, start_time, is_started } = req.body;
     const userId = req.user.id;
 
     await verifyWorkoutAccess(id, userId);
 
     const endTime = end_time ? new Date(end_time) : null;
+    const startTime = start_time ? new Date(start_time) : null;
     const {totalTonnage} = await Workout.calculateTotalTonnage(id);
 
     const updates = {};
@@ -87,6 +92,8 @@ const updateWorkout = asyncHandler(async (req, res) => {
     if (calories_burned !== undefined) updates.caloriesBurned = calories_burned;
     updates.totalTonnage = totalTonnage;
     if (program_id !== undefined) updates.programId = program_id;
+    if (startTime !== null) updates.startTime = startTime;
+    if (is_started !== undefined) updates.isStarted = Boolean(is_started);
 
     await Workout.updateWorkout(id, updates);
     const updatedWorkout = await Workout.getWorkoutById(id);

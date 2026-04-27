@@ -8,6 +8,7 @@ class WorkoutDTO{
             programName: workout.program_name,
             startTime: workout.start_time,
             endTime: workout.end_time,
+            isStarted: workout.is_started,
             totalTonnage: workout.total_tonnage,
             caloriesBurned: workout.calories_burned,
             exerciseCount: parseInt(workout.exercise_count) || 0
@@ -24,6 +25,7 @@ class WorkoutDTO{
             programName: workout.program_name,
             startTime: workout.start_time,
             endTime: workout.end_time,
+            isStarted: workout.is_started,
             totalTonnage: workout.total_tonnage,
             caloriesBurned: workout.calories_burned,
             notes: workout.notes,
@@ -43,6 +45,7 @@ class WorkoutDTO{
             programName: workout.program_name,
             startTime: workout.start_time,
             endTime: workout.end_time,
+            isStarted: workout.is_started,
             totalTonnage: workout.total_tonnage,
             caloriesBurned: workout.calories_burned,
             notes: workout.notes,

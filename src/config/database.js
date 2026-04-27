@@ -141,6 +141,12 @@ const initDatabase = async () => {
         await client.query(`
             ALTER TABLE workouts ADD COLUMN IF NOT EXISTS calories_burned DECIMAL(10,2);
         `);
+        await client.query(`
+            ALTER TABLE workouts ADD COLUMN IF NOT EXISTS is_started BOOLEAN NOT NULL DEFAULT TRUE;
+        `);
+        await client.query(`
+            ALTER TABLE workouts ALTER COLUMN start_time DROP NOT NULL;
+        `);
         //workout_exercises table
         await client.query(`
             CREATE TABLE IF NOT EXISTS workout_exercises(

@@ -1,12 +1,12 @@
 const {pool} = require('../config/database');
 
 class Workout{
-    static async createWorkout(userId, programId, startTime, name, notes){
+    static async createWorkout(userId, programId, startTime, name, notes, isStarted = true){
         const result = await pool.query(
-            `INSERT INTO workouts(user_id, program_id, start_time, name, notes)
-            VALUES($1, $2, $3, $4, $5) 
+            `INSERT INTO workouts(user_id, program_id, start_time, name, notes, is_started)
+            VALUES($1, $2, $3, $4, $5, $6) 
             RETURNING id`,
-            [userId, programId, startTime, name, notes]
+            [userId, programId, startTime, name, notes, isStarted]
         );
         return {id: result.rows[0].id};
     }
@@ -86,6 +86,14 @@ class Workout{
         if (updates.caloriesBurned !== undefined) {
             fields.push(`calories_burned = $${paramIndex++}`);
             values.push(updates.caloriesBurned);
+        }
+        if (updates.startTime !== undefined) {
+            fields.push(`start_time = $${paramIndex++}`);
+            values.push(updates.startTime);
+        }
+        if (updates.isStarted !== undefined) {
+            fields.push(`is_started = $${paramIndex++}`);
+            values.push(updates.isStarted);
         }
 
         if (fields.length === 0) {
