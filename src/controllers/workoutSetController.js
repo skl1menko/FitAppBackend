@@ -2,7 +2,7 @@ const WorkoutSet = require('../models/WorkoutSet');
 const WorkoutExercise = require('../models/WorkoutExercise');
 const Workout = require('../models/Workout');
 const {asyncHandler, AppError} = require('../utils/errorHandler');
-const {validateRequired, validatePositiveNumber, validateRange} = require('../utils/validator');
+const {validateNonNegativeNumber, validateRange} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
 const {verifyWorkoutAccess} = require('../utils/accessControl');
 const WorkoutSetDTO = require('../dto/workoutSet.dto');
@@ -13,12 +13,20 @@ const addSet = asyncHandler(async (req, res) => {
     const {weight_kg, reps, rpe} = req.body;
     const userId = req.user.id;
 
-    validateRequired(weight_kg, 'Weight');
-    validateRequired(reps, 'Reps');
-    validatePositiveNumber(weight_kg, 'Weight');
-    validatePositiveNumber(reps, 'Reps');
-    if (rpe) {
-        validateRange(rpe, 'RPE', 1, 10);
+    if (weight_kg === undefined || weight_kg === null || (typeof weight_kg === 'string' && weight_kg.trim() === '')) {
+        throw new AppError('Weight is required', 400);
+    }
+
+    if (reps === undefined || reps === null || (typeof reps === 'string' && reps.trim() === '')) {
+        throw new AppError('Reps is required', 400);
+    }
+
+    validateNonNegativeNumber(weight_kg, 'Weight');
+    validateNonNegativeNumber(reps, 'Reps');
+
+    const normalizedRpe = (rpe === '' || rpe === 0 || rpe === '0') ? null : rpe;
+    if (normalizedRpe !== null && normalizedRpe !== undefined) {
+        validateRange(normalizedRpe, 'RPE', 1, 10);
     }
     
     await verifyWorkoutAccess(workoutId, userId);
@@ -34,7 +42,7 @@ const addSet = asyncHandler(async (req, res) => {
         exerciseId,
         weight_kg,
         reps,
-        rpe || null
+        normalizedRpe
     );
 
     await WorkoutExercise.calculateExerciseTonnage(exerciseId);
@@ -88,9 +96,22 @@ const updateSet = asyncHandler(async (req, res) => {
         throw new AppError('Set does not belong to the specified exercise in this workout', 400);
     }
 
+    if (weight_kg !== undefined) {
+        validateNonNegativeNumber(weight_kg, 'Weight');
+    }
+
+    if (reps !== undefined) {
+        validateNonNegativeNumber(reps, 'Reps');
+    }
+
+    const normalizedRpe = (rpe === '' || rpe === 0 || rpe === '0') ? null : rpe;
+    if (normalizedRpe !== undefined && normalizedRpe !== null) {
+        validateRange(normalizedRpe, 'RPE', 1, 10);
+    }
+
     const updateWeightKg = weight_kg !== undefined ? weight_kg : existingSet.weight_kg;
     const updateReps = reps !== undefined ? reps : existingSet.reps;
-    const updateRpe = rpe !== undefined ? rpe : existingSet.rpe;
+    const updateRpe = rpe !== undefined ? normalizedRpe : existingSet.rpe;
 
     await WorkoutSet.updateWorkoutSet(setId, updateWeightKg, updateReps, updateRpe);
     

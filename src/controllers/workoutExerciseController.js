@@ -79,17 +79,18 @@ const updateExerciseTonnage = asyncHandler(async (req, res) => {
 const deleteExerciseFromWorkout = asyncHandler(async (req, res) => {
     const {workoutId, exerciseId} = req.params;
     const userId = req.user.id;
+    const workoutExerciseId = parseInt(exerciseId);
 
     await verifyWorkoutAccess(workoutId, userId);
 
     const exercises = await WorkoutExercise.getExercisesByWorkoutId(workoutId);
-    const exerciseExists = exercises.find(ex => ex.exercise_id === parseInt(exerciseId));
+    const exerciseExists = exercises.find(ex => ex.id === workoutExerciseId);
 
     if (!exerciseExists) {
         throw new AppError('Exercise not found in this workout', 404);
     }
 
-    await WorkoutExercise.removeExerciseFromWorkout(workoutId, exerciseId);
+    await WorkoutExercise.removeExerciseFromWorkout(workoutId, workoutExerciseId);
     await Workout.calculateTotalTonnage(workoutId);
 
     return successResponse(res, null, 'Exercise removed from workout successfully');

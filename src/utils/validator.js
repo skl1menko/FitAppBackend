@@ -8,6 +8,14 @@ const validatePositiveNumber = (value, fieldName) => {
     }
 };
 
+const validateNonNegativeNumber = (value, fieldName) => {
+    if (value !== undefined && value !== null) {
+        if (isNaN(value) || Number(value) < 0) {
+            throw new AppError(`${fieldName} must be a non-negative number`, 400);
+        }
+    }
+};
+
 const validateRange = (value, fieldName, min, max) => {
     if (value !== undefined && value !== null) {
         if (isNaN(value) || value < min || value > max) {
@@ -32,6 +40,7 @@ const validateNumericFields = (fields) => {
 
 module.exports = {
     validatePositiveNumber,
+    validateNonNegativeNumber,
     validateRange,
     validateRequired,
     validateNumericFields

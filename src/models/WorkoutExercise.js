@@ -41,11 +41,11 @@ class WorkoutExercise{
         return {deleted: result.rowCount};
     }
 
-    static async removeExerciseFromWorkout(workoutId, exerciseId){
+    static async removeExerciseFromWorkout(workoutId, workoutExerciseId){
         const result = await pool.query(
             `DELETE FROM workout_exercises
-            WHERE workout_id = $1 AND exercise_id = $2`,
-            [workoutId, exerciseId]
+            WHERE workout_id = $1 AND id = $2`,
+            [workoutId, workoutExerciseId]
         );
         return {deleted: result.rowCount};
     }
