@@ -2,9 +2,12 @@ const express = require('express');
 const router = express.Router();
 const {
     createTrainingProgram,
+    createTrainingProgramWithWorkouts,
     getAllPrograms,
     getProgramById,
+    getMyCreatedPrograms,
     getMyAssignedPrograms,
+    getMyPrograms,
     updateTrainingProgram,
     deleteTrainingProgram
 } = require('../controllers/trainingProgramController');
@@ -15,7 +18,13 @@ router.use(verifyToken);
 
 router.post('/', createTrainingProgram);
 
+router.post('/with-workouts', createTrainingProgramWithWorkouts);
+
 router.get('/', getAllPrograms);
+
+router.get('/my', getMyPrograms);
+
+router.get('/my-created', getMyCreatedPrograms);
 
 router.get('/my-assigned',getMyAssignedPrograms);
 

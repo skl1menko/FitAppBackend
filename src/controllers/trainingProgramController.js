@@ -1,6 +1,7 @@
 const TrainingProgram = require("../models/TrainingProgram");
 const User = require("../models/User");
 const Workout = require("../models/Workout");
+const {pool} = require('../config/database');
 const {asyncHandler, AppError} = require('../utils/errorHandler');
 const {validateRequired} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
@@ -8,7 +9,7 @@ const TrainingProgramDTO = require('../dto/trainingProgram.dto');
 
 //POST /api/programs
 const createTrainingProgram = asyncHandler(async (req, res) => {
-    const {name, description} = req.body;
+    const {name, description} = req.body || {};
     const userId = req.user.id;
     
     validateRequired(name, 'Program name');
@@ -17,6 +18,66 @@ const createTrainingProgram = asyncHandler(async (req, res) => {
     const program = await TrainingProgram.getTrainingProgramById(newProgram.id);
 
     return createResponse(res, TrainingProgramDTO.toDetail(program), 'Training program created successfully');
+});
+
+//POST /api/programs/with-workouts
+const createTrainingProgramWithWorkouts = asyncHandler(async (req, res) => {
+    const {name, description, workouts = []} = req.body || {};
+    const userId = req.user.id;
+
+    validateRequired(name, 'Program name');
+
+    if (!Array.isArray(workouts)) {
+        throw new AppError('Workouts must be an array', 400);
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const programResult = await client.query(
+            `INSERT INTO training_programs(name, description, creator_id)
+            VALUES($1, $2, $3)
+            RETURNING id`,
+            [name, description || null, userId]
+        );
+
+        const programId = programResult.rows[0].id;
+
+        for (const [index, workout] of workouts.entries()) {
+            const workoutName = workout?.name ?? workout?.workoutName ?? null;
+            const workoutNotes = workout?.notes ?? null;
+            const workoutStartTime = workout?.start_time ?? workout?.startTime ?? null;
+            const workoutIsStarted = workout?.is_started !== undefined
+                ? Boolean(workout.is_started)
+                : false;
+
+            validateRequired(workoutName, `Workout #${index + 1} name`);
+
+            await client.query(
+                `INSERT INTO workouts(user_id, program_id, start_time, name, notes, is_started)
+                VALUES($1, $2, $3, $4, $5, $6)`,
+                [userId, programId, workoutStartTime || null, workoutName, workoutNotes, workoutIsStarted]
+            );
+        }
+
+        await client.query('COMMIT');
+
+        const program = await TrainingProgram.getTrainingProgramById(programId);
+        const createdWorkouts = await Workout.getWorkoutByProgram(programId);
+
+        return createResponse(
+            res,
+            TrainingProgramDTO.toProgramWithWorkouts(program, createdWorkouts),
+            'Training program with workouts created successfully'
+        );
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
 });
 
 //GET /api/programs
@@ -46,10 +107,35 @@ const getMyAssignedPrograms = asyncHandler(async (req, res) => {
     return successResponse(res, TrainingProgramDTO.toListArray(programs));
 });
 
+//GET /api/programs/my-created
+const getMyCreatedPrograms = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const programs = await TrainingProgram.getProgramByCreator(userId);
+    return successResponse(res, TrainingProgramDTO.toListArray(programs));
+});
+
+//GET /api/programs/my
+const getMyPrograms = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const createdPrograms = await TrainingProgram.getProgramByCreator(userId);
+    const assignedPrograms = await TrainingProgram.getAthletePrograms(userId);
+    const merged = new Map();
+
+    createdPrograms.forEach((program) => {
+        merged.set(program.id, program);
+    });
+
+    assignedPrograms.forEach((program) => {
+        merged.set(program.id, program);
+    });
+
+    return successResponse(res, TrainingProgramDTO.toListArray(Array.from(merged.values())));
+});
+
 //POST /api/programs/:id/assign
 const assignProgramToAthlete = asyncHandler(async (req, res) => {
     const {id} = req.params;
-    const {athleteId} = req.body;
+    const {athleteId} = req.body || {};
     const trainerId = req.user.id;
     const userRole = req.user.role;
 
@@ -81,7 +167,7 @@ const assignProgramToAthlete = asyncHandler(async (req, res) => {
 //PUT /api/programs/:id
 const updateTrainingProgram = asyncHandler(async (req, res) => {
     const {id} = req.params;
-    const {name, description} = req.body;
+    const {name, description} = req.body || {};
     const userId = req.user.id;
 
     validateRequired(name, 'Program name');
@@ -121,9 +207,12 @@ const deleteTrainingProgram = asyncHandler(async (req, res) => {
 
 module.exports = {
     createTrainingProgram,
+    createTrainingProgramWithWorkouts,
     getAllPrograms,
     getProgramById,
+    getMyCreatedPrograms,
     getMyAssignedPrograms,
+    getMyPrograms,
     assignProgramToAthlete,
     updateTrainingProgram,
     deleteTrainingProgram
