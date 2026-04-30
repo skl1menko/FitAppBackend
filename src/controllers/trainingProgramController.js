@@ -201,7 +201,24 @@ const deleteTrainingProgram = asyncHandler(async (req, res) => {
         throw new AppError('You are not authorized to delete this training program', 403);
     }
 
-    await TrainingProgram.deleteProgramById(id);
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+        await Workout.markCompletedWorkoutsFromDeletedPlan(id, client);
+        await Workout.deleteIncompleteWorkoutsByProgramId(id, client);
+        await client.query(
+            `DELETE FROM training_programs WHERE id = $1`,
+            [id]
+        );
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+
     return successResponse(res, null, 'Training program deleted successfully');
 });
 

@@ -115,6 +115,28 @@ class Workout{
         return {deleted: result.rowCount}
     }
 
+    static async deleteIncompleteWorkoutsByProgramId(programId, client = pool){
+        const result = await client.query(
+            `DELETE FROM workouts
+            WHERE program_id = $1
+            AND end_time IS NULL`,
+            [programId]
+        );
+        return {deleted: result.rowCount};
+    }
+
+    static async markCompletedWorkoutsFromDeletedPlan(programId, client = pool){
+        const result = await client.query(
+            `UPDATE workouts
+            SET program_id = NULL
+            WHERE program_id = $1
+            AND end_time IS NOT NULL`,
+            [programId]
+        );
+        return {updated: result.rowCount};
+    }
+
+
     static async calculateTotalTonnage(workoutId){
         const result = await pool.query(
             `SELECT COALESCE(SUM(we.exercise_tonnage), 0) as total_tonnage
