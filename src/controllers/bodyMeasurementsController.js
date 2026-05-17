@@ -4,6 +4,24 @@ const {validateNumericFields, validateRequired} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
 const BodyMeasurementDTO = require('../dto/bodyMeasurements.dto');
 
+const normalizeDateRange = (startDate, endDate) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        throw new AppError('Invalid date format', 400);
+    }
+
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    if (start > end) {
+        throw new AppError('Start date cannot be after end date', 400);
+    }
+
+    return {start, end};
+};
+
 //POST /api/body-measurements
 const addBodyMeasurement = asyncHandler(async (req, res) => {
     const userId = req.user.id;
@@ -60,17 +78,7 @@ const getBodyMeasurementsByDateRange = asyncHandler(async (req, res) => {
 
     validateRequired(startDate, 'Start date');
     validateRequired(endDate, 'End date');
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        throw new AppError('Invalid date format', 400);
-    }
-
-    if (start > end) {
-        throw new AppError('Start date cannot be after end date', 400);
-    }
+    const {start, end} = normalizeDateRange(startDate, endDate);
 
     const measurements = await BodyMeasurement.getMeasurementsByDateRange(userId, start, end);
     return successResponse(res, BodyMeasurementDTO.toListArray(measurements));
@@ -146,16 +154,7 @@ const getBodyMeasurementProgress = asyncHandler(async (req, res) => {
     
     validateRequired(startDate, 'Start date');
     validateRequired(endDate, 'End date');
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        throw new AppError('Invalid date format', 400);
-    }
-    
-    if (start > end) {
-        throw new AppError('Start date cannot be after end date', 400);
-    }
+    const {start, end} = normalizeDateRange(startDate, endDate);
     
     const progressData = await BodyMeasurement.getMeasurementProgress(userId, field, start, end);
     return successResponse(res, {

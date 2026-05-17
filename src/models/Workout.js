@@ -35,6 +35,18 @@ class Workout{
         return result.rows;
     }
 
+    static async getWorkoutByProgramForUser(programId, userId){
+        const result = await pool.query(
+            `SELECT w.*, u.full_name as user_name
+             FROM workouts w
+             LEFT JOIN users u ON w.user_id = u.id
+             WHERE w.program_id = $1 AND w.user_id = $2
+             ORDER BY w.start_time DESC`,
+            [programId, userId]
+        );
+        return result.rows;
+    }
+
     static async getWorkoutByDateRange(userId, startDate, endDate){
         const result = await pool.query(
             `SELECT w.*, tp.name as program_name
@@ -118,9 +130,20 @@ class Workout{
     static async deleteIncompleteWorkoutsByProgramId(programId, client = pool){
         const result = await client.query(
             `DELETE FROM workouts
-            WHERE program_id = $1
-            AND end_time IS NULL`,
+             WHERE program_id = $1
+             AND end_time IS NULL`,
             [programId]
+        );
+        return {deleted: result.rowCount};
+    }
+
+    static async deleteIncompleteWorkoutsByProgramAndUser(programId, userId, client = pool){
+        const result = await client.query(
+            `DELETE FROM workouts
+             WHERE program_id = $1
+               AND user_id = $2
+               AND end_time IS NULL`,
+            [programId, userId]
         );
         return {deleted: result.rowCount};
     }
@@ -128,10 +151,22 @@ class Workout{
     static async markCompletedWorkoutsFromDeletedPlan(programId, client = pool){
         const result = await client.query(
             `UPDATE workouts
-            SET program_id = NULL
-            WHERE program_id = $1
-            AND end_time IS NOT NULL`,
+             SET program_id = NULL
+             WHERE program_id = $1
+             AND end_time IS NOT NULL`,
             [programId]
+        );
+        return {updated: result.rowCount};
+    }
+
+    static async markCompletedWorkoutsAsUnassigned(programId, userId, client = pool){
+        const result = await client.query(
+            `UPDATE workouts
+             SET program_id = NULL
+             WHERE program_id = $1
+               AND user_id = $2
+               AND end_time IS NOT NULL`,
+            [programId, userId]
         );
         return {updated: result.rowCount};
     }

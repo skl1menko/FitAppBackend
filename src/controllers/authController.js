@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const {generateToken} = require('../middleware/authMiddleware');
@@ -87,14 +88,57 @@ const getAllUser = asyncHandler(async (req, res) => {
 //PUT /api/auth/profile
 const updateProfile = asyncHandler(async (req, res) => {
     const userId = req.user.id;
-    const {full_name} = req.body;
+    const {full_name, avatar_url, image_url} = req.body;
     
     validateRequired(full_name, 'Full name');
-    
-    await User.updateUser(userId, full_name);
+
+    await User.updateUser(userId, full_name, avatar_url !== undefined ? avatar_url : image_url || null);
     const updatedUser = await User.findUserById(userId);
     
     return successResponse(res, UserDTO.toList(updatedUser), 'Profile updated successfully');
+});
+
+//POST /api/auth/google/complete-role
+const completeGoogleRole = asyncHandler(async (req, res) => {
+    const {setup_token, role} = req.body || {};
+
+    validateRequired(setup_token, 'Setup token');
+    validateRequired(role, 'Role');
+
+    if (role !== 'athlete' && role !== 'trainer') {
+        throw new AppError('Invalid role', 400);
+    }
+
+    let payload;
+    try {
+        payload = jwt.verify(setup_token, process.env.JWT_SECRET);
+    } catch {
+        throw new AppError('Invalid or expired setup token', 401);
+    }
+
+    if (payload?.purpose !== 'google-role-setup') {
+        throw new AppError('Invalid setup token purpose', 401);
+    }
+
+    const email = payload.email;
+    const fullName = payload.fullName || email?.split('@')?.[0] || 'Google User';
+    validateRequired(email, 'Email');
+
+    let user = await User.findUserByEmail(email);
+    if (!user) {
+        const userRole = await Role.getRoleByName(role);
+        if (!userRole) {
+            throw new AppError('Invalid role', 400);
+        }
+
+        const randomPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        const newUser = await User.createUser(email, hashedPassword, fullName, userRole.id);
+        user = await User.findUserById(newUser.id);
+    }
+
+    const token = generateToken(user.id);
+    return successResponse(res, UserDTO.toAuth(user, token), 'Google sign-in completed successfully');
 });
 
 module.exports = {
@@ -102,6 +146,6 @@ module.exports = {
     login,
     getProfile,
     getAllUser,
-    updateProfile
+    updateProfile,
+    completeGoogleRole
 };
-

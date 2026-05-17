@@ -34,9 +34,13 @@ const initDatabase = async () => {
                 email VARCHAR(255) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
                 full_name VARCHAR(255),
+                image_url TEXT,
                 role_id INTEGER NOT NULL REFERENCES roles(id),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS image_url TEXT;
         `);
         //connection table between trainers and clients
         await client.query(`
@@ -46,6 +50,33 @@ const initDatabase = async () => {
                 assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (trainer_id, client_id)
             )
+        `);
+        await client.query(`
+            ALTER TABLE trainer_clients
+            ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'accepted';
+        `);
+        await client.query(`
+            ALTER TABLE trainer_clients
+            ADD COLUMN IF NOT EXISTS requested_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+        `);
+        await client.query(`
+            ALTER TABLE trainer_clients
+            ADD COLUMN IF NOT EXISTS responded_at TIMESTAMP;
+        `);
+        await client.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'trainer_clients_status_check'
+                      AND conrelid = 'trainer_clients'::regclass
+                ) THEN
+                    ALTER TABLE trainer_clients
+                    ADD CONSTRAINT trainer_clients_status_check
+                    CHECK (status IN ('pending', 'accepted'));
+                END IF;
+            END $$;
         `);
         // enforce one trainer per client: keep only the latest assignment for legacy rows
         await client.query(`
@@ -58,6 +89,7 @@ const initDatabase = async () => {
                         ORDER BY assigned_at DESC, trainer_id DESC
                     ) AS rn
                 FROM trainer_clients
+                WHERE status = 'accepted'
             )
             DELETE FROM trainer_clients tc
             USING ranked r
@@ -116,10 +148,23 @@ const initDatabase = async () => {
                 id SERIAL PRIMARY KEY,
                 program_id INTEGER NOT NULL REFERENCES training_programs(id) ON DELETE CASCADE,
                 athlete_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                assigned_by_id INTEGER NOT NULL REFERENCES users(id),
+                assigned_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE (program_id, athlete_id)
             )
+        `);
+        await client.query(`
+            ALTER TABLE program_assignments
+            ALTER COLUMN assigned_by_id DROP NOT NULL;
+        `);
+        await client.query(`
+            ALTER TABLE program_assignments
+            DROP CONSTRAINT IF EXISTS program_assignments_assigned_by_id_fkey;
+        `);
+        await client.query(`
+            ALTER TABLE program_assignments
+            ADD CONSTRAINT program_assignments_assigned_by_id_fkey
+            FOREIGN KEY (assigned_by_id) REFERENCES users(id) ON DELETE SET NULL;
         `);
         
         //workouts table

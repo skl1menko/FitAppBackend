@@ -1,9 +1,12 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const generateToken = (userId, expiresIn = '30d') => {
+const generateToken = (userIdOrPayload, expiresIn = '30d') => {
+    const payload = typeof userIdOrPayload === 'object' && userIdOrPayload !== null
+        ? userIdOrPayload
+        : {userId: userIdOrPayload};
     return jwt.sign(
-        {userId},
+        payload,
         process.env.JWT_SECRET,
         {expiresIn}
     );

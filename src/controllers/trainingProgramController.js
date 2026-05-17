@@ -7,6 +7,94 @@ const {validateRequired} = require('../utils/validator');
 const {createResponse, successResponse} = require('../utils/responseHandler');
 const TrainingProgramDTO = require('../dto/trainingProgram.dto');
 
+const verifyTrainerClientRelation = async (trainerId, athleteId) => {
+    const clients = await User.getTrainerClients(trainerId);
+    return clients.some((client) => Number(client.id) === Number(athleteId));
+};
+
+const cloneProgramWorkoutsForAthlete = async ({programId, trainerId, athleteId}) => {
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const templateWorkoutsResult = await client.query(
+            `SELECT id, name, notes, start_time
+             FROM workouts
+             WHERE program_id = $1 AND user_id = $2
+             ORDER BY id ASC`,
+            [programId, trainerId]
+        );
+
+        for (const templateWorkout of templateWorkoutsResult.rows) {
+            const insertedWorkoutResult = await client.query(
+                `INSERT INTO workouts(user_id, program_id, start_time, end_time, name, notes, total_tonnage, calories_burned, is_started)
+                 VALUES($1, $2, $3, NULL, $4, $5, 0, NULL, FALSE)
+                 RETURNING id`,
+                [athleteId, programId, templateWorkout.start_time || null, templateWorkout.name, templateWorkout.notes]
+            );
+            const newWorkoutId = insertedWorkoutResult.rows[0].id;
+
+            const templateExercisesResult = await client.query(
+                `SELECT id, exercise_id, exercise_order
+                 FROM workout_exercises
+                 WHERE workout_id = $1
+                 ORDER BY exercise_order ASC, id ASC`,
+                [templateWorkout.id]
+            );
+
+            for (const templateExercise of templateExercisesResult.rows) {
+                const insertedExerciseResult = await client.query(
+                    `INSERT INTO workout_exercises(workout_id, exercise_id, exercise_order, exercise_tonnage)
+                     VALUES($1, $2, $3, 0)
+                     RETURNING id`,
+                    [newWorkoutId, templateExercise.exercise_id, templateExercise.exercise_order]
+                );
+                const newWorkoutExerciseId = insertedExerciseResult.rows[0].id;
+
+                const templateSetsResult = await client.query(
+                    `SELECT weight_kg, reps, rpe
+                     FROM workout_sets
+                     WHERE workout_exercise_id = $1
+                     ORDER BY id ASC`,
+                    [templateExercise.id]
+                );
+
+                for (const templateSet of templateSetsResult.rows) {
+                    await client.query(
+                        `INSERT INTO workout_sets(workout_exercise_id, weight_kg, reps, rpe)
+                         VALUES($1, $2, $3, $4)`,
+                        [newWorkoutExerciseId, templateSet.weight_kg, templateSet.reps, templateSet.rpe]
+                    );
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
+const cleanupProgramWorkoutsForAthlete = async ({programId, athleteId}) => {
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+        await Workout.markCompletedWorkoutsAsUnassigned(programId, athleteId, client);
+        await Workout.deleteIncompleteWorkoutsByProgramAndUser(programId, athleteId, client);
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
 //POST /api/programs
 const createTrainingProgram = asyncHandler(async (req, res) => {
     const {name, description} = req.body || {};
@@ -89,15 +177,28 @@ const getAllPrograms = asyncHandler(async (req, res) => {
 //GET /api/programs/:id
 const getProgramById = asyncHandler(async (req, res) => {
     const {id} = req.params;
+    const userId = req.user.id;
     const program = await TrainingProgram.getTrainingProgramById(id);
 
     if (!program) {
         throw new AppError('Training program not found', 404);
     }
+    const isCreator = Number(program.creator_id) === Number(userId);
+    const assignment = isCreator
+        ? null
+        : await TrainingProgram.getProgramAssignment(id, userId);
+    if (!isCreator && !assignment) {
+        throw new AppError('Access denied', 403);
+    }
 
-    const workouts = await Workout.getWorkoutByProgram(id);
-    
-    return successResponse(res, TrainingProgramDTO.toProgramWithWorkouts(program, workouts));
+    const workouts = await Workout.getWorkoutByProgramForUser(id, userId);
+    const responseProgram = {
+        ...program,
+        assigned_at: assignment?.assigned_at || null,
+        assigned_by_name: assignment?.assigned_by_name || null
+    };
+
+    return successResponse(res, TrainingProgramDTO.toProgramWithWorkouts(responseProgram, workouts));
 });
 
 //GET /api/programs/my-assigned
@@ -149,6 +250,9 @@ const assignProgramToAthlete = asyncHandler(async (req, res) => {
     if (!program) {
         throw new AppError('Training program not found', 404);
     }
+    if (Number(program.creator_id) !== Number(trainerId)) {
+        throw new AppError('You can assign only your own training programs', 403);
+    }
 
     const athlete = await User.findUserById(athleteId);
     if (!athlete) {
@@ -158,10 +262,94 @@ const assignProgramToAthlete = asyncHandler(async (req, res) => {
     if (athlete.role_name !== 'athlete') {
         throw new AppError('The specified user is not an athlete', 400);
     }
+    const isMyClient = await verifyTrainerClientRelation(trainerId, athleteId);
+    if (!isMyClient) {
+        throw new AppError('You can assign programs only to your clients', 403);
+    }
 
-    await TrainingProgram.assignProgramToAthlete(id, athleteId, trainerId);
-    
-    return createResponse(res, TrainingProgramDTO.toAssignProgram(program, athlete, trainerId), 'Training program assigned to athlete successfully');
+    const assignment = await TrainingProgram.assignProgramToAthlete(id, athleteId, trainerId);
+    if (assignment.created) {
+        await cloneProgramWorkoutsForAthlete({programId: id, trainerId, athleteId});
+        return createResponse(res, TrainingProgramDTO.toAssignProgram(program, athlete, trainerId), 'Training program assigned to athlete successfully');
+    }
+
+    return createResponse(res, TrainingProgramDTO.toAssignProgram(program, athlete, trainerId), 'Training program is already assigned to this athlete');
+});
+
+//DELETE /api/trainers/programs/:id/assign/:athleteId
+const unassignProgramFromAthlete = asyncHandler(async (req, res) => {
+    const {id, athleteId} = req.params;
+    const trainerId = req.user.id;
+    const userRole = req.user.role;
+
+    if (userRole !== 'trainer') {
+        throw new AppError('Only trainers can unassign training programs', 403);
+    }
+
+    const program = await TrainingProgram.getTrainingProgramById(id);
+    if (!program) {
+        throw new AppError('Training program not found', 404);
+    }
+    if (Number(program.creator_id) !== Number(trainerId)) {
+        throw new AppError('You can unassign only your own training programs', 403);
+    }
+
+    const athlete = await User.findUserById(athleteId);
+    if (!athlete) {
+        throw new AppError('Athlete not found', 404);
+    }
+    if (athlete.role_name !== 'athlete') {
+        throw new AppError('The specified user is not an athlete', 400);
+    }
+
+    const isMyClient = await verifyTrainerClientRelation(trainerId, athleteId);
+    if (!isMyClient) {
+        throw new AppError('You can unassign programs only from your clients', 403);
+    }
+
+    const removed = await TrainingProgram.unassignProgramFromAthlete(id, athleteId);
+    if (!removed.removed) {
+        return successResponse(res, null, 'Program was not assigned to this athlete');
+    }
+
+    await cleanupProgramWorkoutsForAthlete({programId: id, athleteId});
+
+    return successResponse(res, null, 'Training program unassigned from athlete successfully');
+});
+
+//DELETE /api/trainers/programs/assign/:athleteId/all
+const unassignAllProgramsFromAthlete = asyncHandler(async (req, res) => {
+    const {athleteId} = req.params;
+    const trainerId = req.user.id;
+    const userRole = req.user.role;
+
+    if (userRole !== 'trainer') {
+        throw new AppError('Only trainers can unassign training programs', 403);
+    }
+
+    const athlete = await User.findUserById(athleteId);
+    if (!athlete) {
+        throw new AppError('Athlete not found', 404);
+    }
+    if (athlete.role_name !== 'athlete') {
+        throw new AppError('The specified user is not an athlete', 400);
+    }
+
+    const isMyClient = await verifyTrainerClientRelation(trainerId, athleteId);
+    if (!isMyClient) {
+        throw new AppError('You can unassign programs only from your clients', 403);
+    }
+
+    const removedProgramIds = await TrainingProgram.unassignAllProgramsFromAthleteByTrainer(athleteId, trainerId);
+    if (removedProgramIds.length === 0) {
+        return successResponse(res, null, 'No assigned programs to remove for this athlete');
+    }
+
+    for (const programId of removedProgramIds) {
+        await cleanupProgramWorkoutsForAthlete({programId, athleteId});
+    }
+
+    return successResponse(res, null, 'All trainer program assignments removed for athlete successfully');
 });
 
 //PUT /api/programs/:id
@@ -231,6 +419,8 @@ module.exports = {
     getMyAssignedPrograms,
     getMyPrograms,
     assignProgramToAthlete,
+    unassignProgramFromAthlete,
+    unassignAllProgramsFromAthlete,
     updateTrainingProgram,
     deleteTrainingProgram
 };

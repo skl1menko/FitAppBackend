@@ -13,10 +13,14 @@ class TrainingProgram{
 
     static async getTrainingProgramById(id){
         const result = await pool.query(
-            `SELECT tp.*, u.full_name as creator_name
+            `SELECT tp.*,
+                    u.full_name as creator_name,
+                    COALESCE(COUNT(pa.id), 0) as assigned_athletes_count
             FROM training_programs tp
             LEFT JOIN users u ON tp.creator_id = u.id
-            WHERE tp.id = $1`,
+            LEFT JOIN program_assignments pa ON pa.program_id = tp.id
+            WHERE tp.id = $1
+            GROUP BY tp.id, u.full_name`,
             [id]
         );
         return result.rows[0];
@@ -24,8 +28,12 @@ class TrainingProgram{
 
     static async getProgramByCreator(creatorId){
         const result = await pool.query(
-            `SELECT * FROM training_programs
+            `SELECT tp.*,
+                    COALESCE(COUNT(pa.id), 0) as assigned_athletes_count
+            FROM training_programs tp
+            LEFT JOIN program_assignments pa ON pa.program_id = tp.id
             WHERE creator_id = $1
+            GROUP BY tp.id
             ORDER BY created_at DESC`,
             [creatorId]
         );
@@ -45,11 +53,26 @@ class TrainingProgram{
         return result.rows;
     }
 
+    static async getProgramAssignment(programId, athleteId){
+        const result = await pool.query(
+            `SELECT pa.*, u.full_name as assigned_by_name
+             FROM program_assignments pa
+             LEFT JOIN users u ON pa.assigned_by_id = u.id
+             WHERE pa.program_id = $1 AND pa.athlete_id = $2`,
+            [programId, athleteId]
+        );
+        return result.rows[0];
+    }
+
     static async getAllPrograms(){
         const result = await pool.query(
-            `SELECT tp.*, u.full_name as creator_name
+            `SELECT tp.*,
+                    u.full_name as creator_name,
+                    COALESCE(COUNT(pa.id), 0) as assigned_athletes_count
             FROM training_programs tp
             LEFT JOIN users u ON tp.creator_id = u.id
+            LEFT JOIN program_assignments pa ON pa.program_id = tp.id
+            GROUP BY tp.id, u.full_name
             ORDER BY tp.created_at DESC`
         );
         return result.rows;
@@ -81,7 +104,7 @@ class TrainingProgram{
             RETURNING id`,
             [programId, athleteId, assignedById]
         );
-        return {id: result.rows[0]?.id, success: true};
+        return {id: result.rows[0]?.id, created: result.rowCount > 0};
     }
 
     static async unassignProgramFromAthlete(programId, athleteId){
@@ -91,6 +114,22 @@ class TrainingProgram{
             [programId, athleteId]
         );
         return {removed: result.rowCount};
+    }
+
+    static async unassignAllProgramsFromAthleteByTrainer(athleteId, trainerId){
+        const result = await pool.query(
+            `WITH removed AS (
+                DELETE FROM program_assignments pa
+                USING training_programs tp
+                WHERE pa.program_id = tp.id
+                  AND pa.athlete_id = $1
+                  AND tp.creator_id = $2
+                RETURNING pa.program_id
+            )
+            SELECT program_id FROM removed`,
+            [athleteId, trainerId]
+        );
+        return result.rows.map((row) => row.program_id);
     }
 }
 

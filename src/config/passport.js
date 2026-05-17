@@ -12,12 +12,26 @@ passport.use(new GoogleStrategy({
 }, async(req, accessToken, refreshToken, profile, done) => {
     try {
         const email = profile.emails[0].value;
-        const selectedRole = req.query.role || 'athlete'; // Get the selected role from the query parameters
+        const roleFromQuery = typeof req.query.role === 'string' ? req.query.role : '';
+        const roleFromState = typeof req.query.state === 'string' ? req.query.state : '';
+        const selectedRole = roleFromQuery === 'trainer' || roleFromQuery === 'athlete'
+            ? roleFromQuery
+            : (roleFromState === 'trainer' || roleFromState === 'athlete' ? roleFromState : null);
 
         let user = await User.findUserByEmail(email);
 
         if (!user) {
+            if (!selectedRole) {
+                return done(null, false, {
+                    code: 'ROLE_REQUIRED',
+                    email,
+                    fullName: profile.displayName || ''
+                });
+            }
             const userRole = await Role.getRoleByName(selectedRole);
+            if (!userRole) {
+                return done(new Error('Invalid role selected for Google sign-in'), null);
+            }
             const randomPassword = Math.random().toString(36).slice(-8);
             const hashedPassword = await bcrypt.hash(randomPassword, 10);
             

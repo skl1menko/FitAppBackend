@@ -5,7 +5,8 @@ class UserDTO{
             userId: user.id,
             email: user.email,
             fullName: user.full_name,
-            role: user.role_name
+            role: user.role_name,
+            avatarUrl: user.image_url
         }
     }
 
@@ -15,6 +16,7 @@ class UserDTO{
             email: user.email,
             fullName: user.full_name,
             role: user.role_name,
+            avatarUrl: user.image_url,
             created_at: user.created_at
         }
     }
@@ -25,6 +27,7 @@ class UserDTO{
             email: user.email,
             fullName: user.full_name,
             role: user.role_name,
+            avatarUrl: user.image_url,
             token: token
         }
     }

@@ -5,6 +5,11 @@ class TrainingProgramDTO{
             programName: program.name,
             description: program.description,
             creatorId: program.creator_id,
+            creatorName: program.creator_name || null,
+            assignedAt: program.assigned_at || null,
+            assignedByName: program.assigned_by_name || null,
+            isAssigned: Boolean(program.assigned_at),
+            assignedAthletesCount: Number(program.assigned_athletes_count) || 0
         }
     }
 
@@ -14,7 +19,12 @@ class TrainingProgramDTO{
             programName: program.name,
             description: program.description,
             creatorId: program.creator_id,
-            createdAt: program.created_at
+            creatorName: program.creator_name || null,
+            createdAt: program.created_at,
+            assignedAt: program.assigned_at || null,
+            assignedByName: program.assigned_by_name || null,
+            isAssigned: Boolean(program.assigned_at),
+            assignedAthletesCount: Number(program.assigned_athletes_count) || 0
         }
     }
 
@@ -24,7 +34,12 @@ class TrainingProgramDTO{
             programName: program.name,
             description: program.description,
             creatorId: program.creator_id,
+            creatorName: program.creator_name || null,
             createdAt: program.created_at,
+            assignedAt: program.assigned_at || null,
+            assignedByName: program.assigned_by_name || null,
+            isAssigned: Boolean(program.assigned_at),
+            assignedAthletesCount: Number(program.assigned_athletes_count) || 0,
             workouts: workouts
         }
     }
